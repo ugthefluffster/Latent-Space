@@ -424,6 +424,14 @@
           camera.position.copy(spaceship.position);
           camera.quaternion.copy(spaceship.quaternion);
 
+          const maxVisibleDistance = 500000; // Adjust this value as needed for performance
+
+          // Update star visibility based on distance to the camera
+          stars.forEach(function (star) {
+            let distance = star.position.distanceTo(camera.position);
+            star.visible = distance <= maxVisibleDistance;
+          });
+
           gimbalSphere.quaternion.copy(spaceship.quaternion.clone().invert());
 
           // Move asteroids and regenerate if they are too far from the ship
