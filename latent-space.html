@@ -268,8 +268,6 @@
       let spaceship;
       let asteroids = [];
       let stars = [];
-      let whiteDwarfs = [];
-      let blackHoles = [];
 
       let speed = 0;
       const rotationSpeed = 0.02;
@@ -439,16 +437,11 @@
             }
           });
 
-          // Move space objects and regenerate if they are too far from the ship
-          let spaceObjects = stars.concat(whiteDwarfs, blackHoles);
-          spaceObjects.forEach(function (object) {
+          // Move stars and regenerate if they are too far from the ship
+          stars.forEach(function (object) {
             let distance = object.position.distanceTo(spaceship.position);
-            if (distance > object.userData.resetDistance && object!==targetObject) { // Use per-object resetDistance
-              if (blackHoles.includes(object)) {
-                resetSpaceObjectPositionBlackHole(object, object.userData.size);
-              } else {
-                resetSpaceObjectPosition(object, object.userData.size);
-              }
+            if (distance > object.userData.resetDistance && object !== targetObject) {
+              resetSpaceObjectPosition(object, object.userData.size);
             }
           });
 
@@ -498,18 +491,9 @@
       }
 
       function createObjects() {
-        // Generate initial space objects
+        // Generate initial stars
         for (let i = 0; i < 500; i++) {
           createStar();
-        }
-
-        for (let i = 0; i < 250; i++) {
-          createWhiteDwarf();
-        }
-
-        // Create multiple black holes
-        for (let i = 0; i < 10; i++) {
-          createBlackHole();
         }
       }
 
@@ -598,16 +582,9 @@
       }
 
       function pickRandomTarget() {
-        const infoObjects = stars.concat(whiteDwarfs, blackHoles);
+        const infoObjects = stars;
         targetObject = infoObjects[Math.floor(Math.random() * infoObjects.length)];
-        if (stars.includes(targetObject)) {
-          targetType = 'Star';
-        } else if (whiteDwarfs.includes(targetObject)) {
-          targetType = 'White Dwarf';
-        } else if (blackHoles.includes(targetObject) ||
-          blackHoles.some((bh) => bh.children.includes(targetObject))) {
-          targetType = 'Supermassive Black Hole';
-        }
+        targetType = 'Star';
         const objPosition = targetObject.position;
         const goalNotification = document.getElementById('goal-notification');
         goalNotification.innerHTML = `Goal: Find the ${targetType}<br>x: ${Math.round(objPosition.x)}<br>y: ${Math.round(objPosition.y)}<br>z: ${Math.round(objPosition.z)}`;
@@ -637,9 +614,8 @@
           objects: []
         };
 
-        // Save objects that give out info (stars, white dwarfs, black holes)
-        const infoObjects = stars.concat(whiteDwarfs, blackHoles);
-        infoObjects.forEach(obj => {
+        // Save stars
+        stars.forEach(obj => {
           coordinates.objects.push({
             type: obj.userData.type,
             position: {
@@ -694,12 +670,6 @@
                 case 'star':
                   obj = createStar(objData.size, parsedPosition);
                   break;
-                case 'whiteDwarf':
-                  obj = createWhiteDwarf(objData.size, parsedPosition);
-                  break;
-                case 'blackHole':
-                  obj = createBlackHole(objData.size, parsedPosition);
-                  break;
                 case 'asteroid':
                   obj = createAsteroid(objData.size, parsedPosition);
                   break;
@@ -715,7 +685,7 @@
             const { type, position } = data.goal;
 
             // Find the target object based on type and position
-            targetObject = stars.concat(whiteDwarfs, blackHoles).find(obj => {
+            targetObject = stars.find(obj => {
               return obj.userData.type === type &&
                 Math.round(obj.position.x) === parseInt(position.x, 10) &&
                 Math.round(obj.position.y) === parseInt(position.y, 10) &&
@@ -762,7 +732,7 @@
 
         updateCoordinates();
 
-        // Clear existing info objects
+        // Clear existing stars
         clearInfoObjects();
 
         createObjects();
@@ -820,30 +790,6 @@
           }
         });
         stars = [];
-
-        // Remove and dispose white dwarfs
-        whiteDwarfs.forEach(obj => {
-          scene.remove(obj);
-          disposeObject(obj);
-          if (obj.children && obj.children.length > 0) {
-            obj.children.forEach(child => {
-              disposeObject(child);
-            });
-          }
-        });
-        whiteDwarfs = [];
-
-        // Remove and dispose black holes
-        blackHoles.forEach(obj => {
-          scene.remove(obj);
-          disposeObject(obj);
-          if (obj.children && obj.children.length > 0) {
-            obj.children.forEach(child => {
-              disposeObject(child);
-            });
-          }
-        });
-        blackHoles = [];
       }
 
       function createAsteroid(size, position) {
@@ -906,63 +852,6 @@
         return star;
       }
 
-      function createWhiteDwarf(size, position) {
-        size = size || 15;
-        let geometry = new THREE.SphereGeometry(size, 32, 32);
-        let material = new THREE.MeshBasicMaterial({ color: 0xffffff });
-        let whiteDwarf = new THREE.Mesh(geometry, material);
-
-        whiteDwarf.userData = {
-          size: size,
-          resetDistance: 50000,
-          type: 'whiteDwarf'
-        };
-
-        if (position) {
-          whiteDwarf.position.set(parseFloat(position.x), parseFloat(position.y), parseFloat(position.z));
-        } else {
-          resetSpaceObjectPosition(whiteDwarf, size);
-        }
-
-        scene.add(whiteDwarf);
-        whiteDwarfs.push(whiteDwarf);
-
-        return whiteDwarf;
-      }
-
-      function createBlackHole(size, position) {
-        size = size || 70 * 5; // 350 units (5 times as big)
-        let geometry = new THREE.SphereGeometry(size, 32, 32);
-        let material = new THREE.MeshBasicMaterial({ color: 0x111111 });
-        let blackHole = new THREE.Mesh(geometry, material);
-
-        // Accretion disk
-        let diskInnerRadius = 75 * 5; // 375 units
-        let diskOuterRadius = 150 * 5; // 750 units
-        let diskGeometry = new THREE.RingGeometry(diskInnerRadius, diskOuterRadius, 64);
-        let diskMaterial = new THREE.MeshBasicMaterial({ color: 0xffa500, side: THREE.DoubleSide });
-        let disk = new THREE.Mesh(diskGeometry, diskMaterial);
-        disk.rotation.x = Math.PI / 2;
-        blackHole.add(disk);
-
-        blackHole.userData = {
-          size: size,
-          resetDistance: 250000,
-          type: 'blackHole'
-        };
-
-        if (position) {
-          blackHole.position.set(parseFloat(position.x), parseFloat(position.y), parseFloat(position.z));
-        } else {
-          resetSpaceObjectPositionBlackHole(blackHole, size);
-        }
-
-        scene.add(blackHole);
-        blackHoles.push(blackHole);
-
-        return blackHole;
-      }
-
       function resetAsteroidPosition(asteroid) {
         // Position asteroids very close to the spaceship
         let position = new THREE.Vector3();
@@ -987,23 +876,6 @@
 
         // Random position within a sphere
         let radius = 30000 + Math.random() * 20000; // Between 30,000 and 50,000 units
-        let phi = Math.acos(2 * Math.random() - 1);
-        let theta = 2 * Math.PI * Math.random();
-
-        position.x += radius * Math.sin(phi) * Math.cos(theta);
-        position.y += radius * Math.sin(phi) * Math.sin(theta);
-        position.z += radius * Math.cos(phi);
-
-        object.position.copy(position);
-      }
-
-      function resetSpaceObjectPositionBlackHole(object, size) {
-        // Position black holes randomly around the spaceship
-        let position = new THREE.Vector3();
-        position.copy(spaceship.position);
-
-        // Random position within a sphere, 5 times as far
-        let radius = (30000 + Math.random() * 20000) * 5; // Between 150,000 and 250,000 units
         let phi = Math.acos(2 * Math.random() - 1);
         let theta = 2 * Math.PI * Math.random();
 
@@ -1107,7 +979,7 @@
         objectInfo.innerHTML = ''; // Reset the info display
 
         // Combine all objects to check (excluding asteroids)
-        const objects = stars.concat(whiteDwarfs, blackHoles);
+        const objects = stars;
 
         let hoveredObjects = [];
 
@@ -1166,28 +1038,18 @@
           let closestDistance = hoveredObjects[0].distance;
 
           // Determine the type of the object
-          let type = '';
-          if (stars.includes(closestObject)) {
-            type = 'Star';
-          } else if (whiteDwarfs.includes(closestObject)) {
-            type = 'White Dwarf';
-          } else if (
-            blackHoles.includes(closestObject) ||
-            blackHoles.some((bh) => bh.children.includes(closestObject))
-          ) {
-            type = 'Supermassive Black Hole';
-          }
+          let type = 'Star';
 
           const objPosition = closestObject.position;
 
           // Display coordinates as integers stacked vertically
           objectInfo.innerHTML = `
-      ${type}<br>
-      X: ${parseInt(objPosition.x, 10)}<br>
-      Y: ${parseInt(objPosition.y, 10)}<br>
-      Z: ${parseInt(objPosition.z, 10)}<br>
-      Distance: ${parseInt(closestDistance, 10)}
-    `;
+        ${type}<br>
+        X: ${parseInt(objPosition.x, 10)}<br>
+        Y: ${parseInt(objPosition.y, 10)}<br>
+        Z: ${parseInt(objPosition.z, 10)}<br>
+        Distance: ${parseInt(closestDistance, 10)}
+      `;
 
         }
       }
