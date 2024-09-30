@@ -1,1022 +1,987 @@
 <!DOCTYPE html>
 <html>
 
-<head>
-  <meta charset="UTF-8">
-  <title>3D Spaceship Game</title>
-  <style>
-    body {
-      margin: 0;
-      overflow: hidden;
-    }
-
-    canvas {
-      display: block;
-    }
-
-    #overlay {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      color: white;
-      font-family: Arial, sans-serif;
-      z-index: 1;
-      display: none;
-    }
-
-    #showcontrols {
-      position: absolute;
-      bottom: 10px;
-      left: 10px;
-      color: white;
-      font-family: Arial, sans-serif;
-      z-index: 1;
-    }
-
-    #warp-message {
-      position: absolute;
-      bottom: 110px;
-      left: 50%;
-      transform: translateX(-50%);
-      color: cyan;
-      font-family: Arial, sans-serif;
-      font-size: 24px;
-      text-align: center;
-      display: none;
-      z-index: 2;
-      margin-bottom: 5px;
-    }
-
-    #speedometer {
-      position: absolute;
-      bottom: 60px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 300px;
-      height: 20px;
-      background-color: #444;
-      border: 1px solid #888;
-    }
-
-    #speed-bar {
-      height: 100%;
-      background-color: #0f0;
-      width: 0%;
-    }
-
-    #speed-text {
-      position: absolute;
-      bottom: 90px;
-      left: 50%;
-      transform: translateX(-50%);
-      color: white;
-      font-family: Arial, sans-serif;
-      font-size: 18px;
-      text-align: center;
-    }
-
-    #paused-message {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      color: rgba(255, 255, 255, 0.8);
-      font-family: Arial, sans-serif;
-      font-size: 48px;
-      text-align: center;
-      display: none;
-      z-index: 2;
-    }
-
-    #object-info {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      color: white;
-      font-family: Arial, sans-serif;
-      font-size: 16px;
-      z-index: 1;
-      background-color: rgba(0, 0, 0, 0.5);
-      padding: 10px;
-      border-radius: 5px;
-      pointer-events: none;
-      white-space: nowrap;
-    }
-
-    #coordinates {
-      position: absolute;
-      bottom: 10px;
-      right: 10px;
-      color: white;
-      font-family: Arial, sans-serif;
-      font-size: 14px;
-      z-index: 1;
-      background-color: rgba(173, 173, 173, 0.8);
-      padding: 10px 15px;
-      border-radius: 8px;
-      box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-    }
-
-    #coordinates div {
-      margin-bottom: 5px;
-    }
-
-    #save-message {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      color: lime;
-      font-family: Arial, sans-serif;
-      font-size: 36px;
-      text-align: center;
-      display: none;
-      z-index: 3;
-      background-color: rgba(0, 0, 0, 0.7);
-      padding: 20px 40px;
-      border-radius: 10px;
-    }
-
-    #save-button,
-    #reset-button {
-      position: absolute;
-      left: 10px;
-      color: white;
-      font-family: Arial, sans-serif;
-      font-size: 16px;
-      z-index: 1;
-      background-color: rgba(0, 0, 0, 0.7);
-      padding: 5px 10px;
-      border: 1px solid #888;
-      border-radius: 5px;
-      cursor: pointer;
-      margin-top: 10px;
-    }
-
-    #reset-button {
-      bottom: 90px;
-    }
-
-    #save-button {
-      bottom: 130px;
-    }
-
-    #goal-notification {
-      position: absolute;
-      top: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      color: yellow;
-      font-family: Arial, sans-serif;
-      font-size: 20px;
-      text-align: center;
-      z-index: 2;
-      background-color: rgba(0, 0, 0, 0.7);
-      padding: 10px 20px;
-      border-radius: 5px;
-    }
-
-    #gimbal-canvas {
-      position: absolute;
-      bottom: 150px;
-      right: 10px;
-      z-index: 1;
-      background-color: transparent;
-    }
-
-    #coordinate-x {
-      color: #00ff00;
-      /* Bright green */
-    }
-
-    #coordinate-y {
-      color: #0000ff;
-      /* Bright blue */
-    }
-
-    #coordinate-z {
-      color: #ff0000;
-      /* Bright red */
-    }
-  </style>
-</head>
-
-<body>
-  <div id="showcontrols">
-    <p>Press 'C' to show controls</p>
-  </div>
-  <div id="overlay">
-    <p>Controls:</p>
-    <ul>
-      <li><strong>'W' Key:</strong> Pitch Up</li>
-      <li><strong>'S' Key:</strong> Pitch Down</li>
-      <li><strong>'A' Key:</strong> Yaw Left</li>
-      <li><strong>'D' Key:</strong> Yaw Right</li>
-      <li><strong>'Q' Key:</strong> Roll Left</li>
-      <li><strong>'E' Key:</strong> Roll Right</li>
-      <li><strong>Up Arrow:</strong> Increase Throttle (1 km/s²)</li>
-      <li><strong>Down Arrow:</strong> Decrease Throttle or Reverse (1 km/s²)
-      </li>
-      <li><strong>Enter Key:</strong> Super Thruster Accelerate (500 km/s²)
-      </li>
-      <li><strong>Space Bar:</strong> Super Thruster Decelerate (500 km/s²)
-      </li>
-      <li><strong>Shift + Enter:</strong> Enter Warp (Accelerate to Max Speed
-        over 3 seconds)</li>
-      <li><strong>Shift + Space:</strong> Exit Warp (Decelerate to 0 km/s over
-        3 seconds)</li>
-      <li><strong>Mouse Hover:</strong> Show Object info (Except Asteroids)
-      </li>
-      <li><strong>'P' Key:</strong> Pause/Resume</li>
-      <li><strong>Save Game Button:</strong> Save Game Progress</li>
-      <li><strong>Reset Game Button:</strong> Delete Progress And Regenerate
-        All Objects</li>
-    </ul>
-  </div>
-  <div id="warp-message">Warp Engaged</div>
-  <div id="speedometer">
-    <div id="speed-bar"></div>
-  </div>
-  <div id="speed-text">Speed: 0 km/s</div>
-  <div id="paused-message">Game Paused</div>
-  <div id="object-info"></div>
-  <div id="coordinates">
-    <div>Your coordinates:</div>
-    <div id="coordinate-x">X: 0.00</div>
-    <div id="coordinate-y">Y: 0.00</div>
-    <div id="coordinate-z">Z: 0.00</div>
-  </div>
-  <div id="save-button">Save Game</div>
-  <div id="reset-button">Reset Game</div>
-  <div id="save-message">Game Saved!</div>
-  <div id="goal-notification"></div>
-  <canvas id="gimbal-canvas"></canvas>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js">
-  </script>
-
-  <script>
-
-    let targetObject = null;
-    let goalAchieved = false;
-
-    // Gimbal variables
-    let gimbalScene, gimbalCamera, gimbalRenderer, gimbalSphere;
-
-    // Initialize variables
-    let scene, camera, renderer;
-    let spaceship;
-    let asteroids = [];
-    let stars = [];
-
-    let speed = 0;
-    const rotationSpeed = 0.02;
-    const maxSpeed = 10000; // Maximum speed in km/s
-
-    const normalAcceleration = 1; // km/s² for up/down arrow keys
-    const superAcceleration = 500; // km/s² for super thrusters (Enter key)
-    const superDeceleration = 500; // km/s² for super thrusters (Space bar)
-
-    const warpAcceleration = maxSpeed / 3; // km/s² over 3 seconds to reach max speed
-    const warpDeceleration = maxSpeed / 3; // km/s² over 3 seconds to decelerate from warp speed
-
-    let paused = false;
-    let isWarping = false;
-    let warpInProgress = false;
-    let warpOutProgress = false;
-    let isSuperAccelerating = false;
-    let isSuperDecelerating = false;
-
-    // Key state
-    let keysPressed = {};
-
-    // Clock for delta time
-    const clock = new THREE.Clock();
-
-    // Variables for mouse position
-    let mouse = new THREE.Vector2();
-    let mousePixelX = 0;
-    let mousePixelY = 0;
-
-    init();
-    animate();
-
-    function init() {
-      // Set up the scene
-      scene = new THREE.Scene();
-
-      // Set up the camera (first-person view)
-      camera = new THREE.PerspectiveCamera(
-        75,
-        window.innerWidth / window.innerHeight,
-        0.1,
-        1000000
-      );
-      camera.position.set(0, 0, 0); // Ensure camera starts at origin
-
-      // Set up the renderer
-      renderer = new THREE.WebGLRenderer({ antialias: true });
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      document.body.appendChild(renderer.domElement);
-
-      // Add a spaceship (invisible, as we're in first-person)
-      let geometry = new THREE.ConeGeometry(0.5, 1, 32);
-      let material = new THREE.MeshBasicMaterial({ color: 0xffff00 });
-      spaceship = new THREE.Mesh(geometry, material);
-      spaceship.visible = false; // Hide the spaceship model
-      scene.add(spaceship);
-
-      // Event listeners for controls
-      document.addEventListener('keydown', onKeyDown, false);
-      document.addEventListener('keyup', onKeyUp, false);
-      document.addEventListener('mousemove', onMouseMove, false);
-
-      // Save Game Button Event Listener
-      document.getElementById('save-button').addEventListener('click', function () {
-        saveGameProgress();
-      });
-
-      // Reset Game Button Event Listener
-      document.getElementById('reset-button').addEventListener('click', function () {
-        resetGame();
-      });
-
-      for (let i = 0; i < 10000; i++) {
-        createAsteroid();
+  <head>
+    <meta charset="UTF-8">
+    <title>3D Spaceship Game</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
       }
 
-      createStars();
-
-      // Load saved coordinates if available
-      loadGameProgress();
-
-      // Pick a random object as the target only if no target is loaded
-      if (!targetObject) {
-        pickRandomTarget();
+      canvas {
+        display: block;
       }
 
-      // Initialize the gimbal
-      initGimbal();
-    }
+      #overlay {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        color: white;
+        font-family: Arial, sans-serif;
+        z-index: 1;
+        display: none;
+      }
 
-    function animate() {
-      let deltaTime = clock.getDelta(); // Time elapsed since the last frame in seconds
+      #showcontrols {
+        position: absolute;
+        bottom: 10px;
+        left: 10px;
+        color: white;
+        font-family: Arial, sans-serif;
+        z-index: 1;
+      }
 
-      if (!paused) {
-        // Update ship orientation based on key presses
-        if (keysPressed['w']) {
-          spaceship.rotateX(rotationSpeed); // Pitch up
-        }
-        if (keysPressed['s']) {
-          spaceship.rotateX(-rotationSpeed); // Pitch down
-        }
-        if (keysPressed['a']) {
-          spaceship.rotateY(rotationSpeed); // Yaw left
-        }
-        if (keysPressed['d']) {
-          spaceship.rotateY(-rotationSpeed); // Yaw right
-        }
-        if (keysPressed['q']) {
-          spaceship.rotateZ(-rotationSpeed); // Roll left
-        }
-        if (keysPressed['e']) {
-          spaceship.rotateZ(rotationSpeed); // Roll right
+      #warp-message {
+        position: absolute;
+        bottom: 110px;
+        left: 50%;
+        transform: translateX(-50%);
+        color: cyan;
+        font-family: Arial, sans-serif;
+        font-size: 24px;
+        text-align: center;
+        display: none;
+        z-index: 2;
+        margin-bottom: 5px;
+      }
+
+      #speedometer {
+        position: absolute;
+        bottom: 60px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 300px;
+        height: 20px;
+        background-color: #444;
+        border: 1px solid #888;
+      }
+
+      #speed-bar {
+        height: 100%;
+        background-color: #0f0;
+        width: 0%;
+      }
+
+      #speed-text {
+        position: absolute;
+        bottom: 90px;
+        left: 50%;
+        transform: translateX(-50%);
+        color: white;
+        font-family: Arial, sans-serif;
+        font-size: 18px;
+        text-align: center;
+      }
+
+      #paused-message {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: rgba(255, 255, 255, 0.8);
+        font-family: Arial, sans-serif;
+        font-size: 48px;
+        text-align: center;
+        display: none;
+        z-index: 2;
+      }
+
+      #object-info {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        color: white;
+        font-family: Arial, sans-serif;
+        font-size: 16px;
+        z-index: 1;
+        background-color: rgba(0, 0, 0, 0.5);
+        padding: 10px;
+        border-radius: 5px;
+        pointer-events: none;
+        white-space: nowrap;
+      }
+
+      #coordinates {
+        position: absolute;
+        bottom: 10px;
+        right: 10px;
+        color: white;
+        font-family: Arial, sans-serif;
+        font-size: 14px;
+        z-index: 1;
+        background-color: rgba(173, 173, 173, 0.8);
+        padding: 10px 15px;
+        border-radius: 8px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+      }
+
+      #coordinates div {
+        margin-bottom: 5px;
+      }
+
+      #save-message {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: lime;
+        font-family: Arial, sans-serif;
+        font-size: 36px;
+        text-align: center;
+        display: none;
+        z-index: 3;
+        background-color: rgba(0, 0, 0, 0.7);
+        padding: 20px 40px;
+        border-radius: 10px;
+      }
+
+      #save-button,
+      #reset-button {
+        position: absolute;
+        left: 10px;
+        color: white;
+        font-family: Arial, sans-serif;
+        font-size: 16px;
+        z-index: 1;
+        background-color: rgba(0, 0, 0, 0.7);
+        padding: 5px 10px;
+        border: 1px solid #888;
+        border-radius: 5px;
+        cursor: pointer;
+        margin-top: 10px;
+      }
+
+      #reset-button {
+        bottom: 90px;
+      }
+
+      #save-button {
+        bottom: 130px;
+      }
+
+      #goal-notification {
+        position: absolute;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        color: yellow;
+        font-family: Arial, sans-serif;
+        font-size: 20px;
+        text-align: center;
+        z-index: 2;
+        background-color: rgba(0, 0, 0, 0.7);
+        padding: 10px 20px;
+        border-radius: 5px;
+      }
+
+      #gimbal-canvas {
+        position: absolute;
+        bottom: 150px;
+        right: 10px;
+        z-index: 1;
+        background-color: transparent;
+      }
+
+      #coordinate-x {
+        color: #00ff00;
+        /* Bright green */
+      }
+
+      #coordinate-y {
+        color: #0000ff;
+        /* Bright blue */
+      }
+
+      #coordinate-z {
+        color: #ff0000;
+        /* Bright red */
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="showcontrols">
+      <p>Press 'C' to show controls</p>
+    </div>
+    <div id="overlay">
+      <p>Controls:</p>
+      <ul>
+        <li><strong>'W' Key:</strong> Pitch Up</li>
+        <li><strong>'S' Key:</strong> Pitch Down</li>
+        <li><strong>'A' Key:</strong> Yaw Left</li>
+        <li><strong>'D' Key:</strong> Yaw Right</li>
+        <li><strong>'Q' Key:</strong> Roll Left</li>
+        <li><strong>'E' Key:</strong> Roll Right</li>
+        <li><strong>Up Arrow:</strong> Increase Throttle (1 km/s²)</li>
+        <li><strong>Down Arrow:</strong> Decrease Throttle or Reverse (1 km/s²)
+        </li>
+        <li><strong>Enter Key:</strong> Super Thruster Accelerate (500 km/s²)
+        </li>
+        <li><strong>Space Bar:</strong> Super Thruster Decelerate (500 km/s²)
+        </li>
+        <li><strong>Shift + Enter:</strong> Enter Warp (Accelerate to Max Speed
+          over 3 seconds)</li>
+        <li><strong>Shift + Space:</strong> Exit Warp (Decelerate to 0 km/s over
+          3 seconds)</li>
+        <li><strong>Mouse Hover:</strong> Show Object info (Except Asteroids)
+        </li>
+        <li><strong>'P' Key:</strong> Pause/Resume</li>
+        <li><strong>Save Game Button:</strong> Save Game Progress</li>
+        <li><strong>Reset Game Button:</strong> Delete Progress And Regenerate
+          All Objects</li>
+      </ul>
+    </div>
+    <div id="warp-message">Warp Engaged</div>
+    <div id="speedometer">
+      <div id="speed-bar"></div>
+    </div>
+    <div id="speed-text">Speed: 0 km/s</div>
+    <div id="paused-message">Game Paused</div>
+    <div id="object-info"></div>
+    <div id="coordinates">
+      <div>Your coordinates:</div>
+      <div id="coordinate-x">X: 0.00</div>
+      <div id="coordinate-y">Y: 0.00</div>
+      <div id="coordinate-z">Z: 0.00</div>
+    </div>
+    <div id="save-button">Save Game</div>
+    <div id="reset-button">Reset Game</div>
+    <div id="save-message">Game Saved!</div>
+    <div id="goal-notification"></div>
+    <canvas id="gimbal-canvas"></canvas>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js">
+    </script>
+
+    <script>
+
+      let targetObject = null;
+      let goalAchieved = false;
+
+      // Gimbal variables
+      let gimbalScene, gimbalCamera, gimbalRenderer, gimbalSphere;
+
+      // Initialize variables
+      let scene, camera, renderer;
+      let spaceship;
+      let asteroids = [];
+      let stars = [];
+
+      let speed = 0;
+      const rotationSpeed = 0.02;
+      const maxSpeed = 10000; // Maximum speed in km/s
+
+      const normalAcceleration = 1; // km/s² for up/down arrow keys
+      const superAcceleration = 500; // km/s² for super thrusters (Enter key)
+      const superDeceleration = 500; // km/s² for super thrusters (Space bar)
+
+      const warpAcceleration = maxSpeed / 3; // km/s² over 3 seconds to reach max speed
+      const warpDeceleration = maxSpeed / 3; // km/s² over 3 seconds to decelerate from warp speed
+
+      let paused = false;
+      let isWarping = false;
+      let warpInProgress = false;
+      let warpOutProgress = false;
+      let isSuperAccelerating = false;
+      let isSuperDecelerating = false;
+
+      // Key state
+      let keysPressed = {};
+
+      // Clock for delta time
+      const clock = new THREE.Clock();
+
+      // Variables for mouse position
+      let mouse = new THREE.Vector2();
+      let mousePixelX = 0;
+      let mousePixelY = 0;
+
+      init();
+      animate();
+
+      function init() {
+        // Set up the scene
+        scene = new THREE.Scene();
+
+        // Set up the camera (first-person view)
+        camera = new THREE.PerspectiveCamera(
+          75,
+          window.innerWidth / window.innerHeight,
+          0.1,
+          1000000
+        );
+        camera.position.set(0, 0, 0); // Ensure camera starts at origin
+
+        // Set up the renderer
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Add a spaceship (invisible, as we're in first-person)
+        let geometry = new THREE.ConeGeometry(0.5, 1, 32);
+        let material = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+        spaceship = new THREE.Mesh(geometry, material);
+        spaceship.visible = false; // Hide the spaceship model
+        scene.add(spaceship);
+
+        // Event listeners for controls
+        document.addEventListener('keydown', onKeyDown, false);
+        document.addEventListener('keyup', onKeyUp, false);
+        document.addEventListener('mousemove', onMouseMove, false);
+
+        // Save Game Button Event Listener
+        document.getElementById('save-button').addEventListener('click', function () {
+          saveGameProgress();
+        });
+
+        // Reset Game Button Event Listener
+        document.getElementById('reset-button').addEventListener('click', function () {
+          resetGame();
+        });
+
+        createAsteroids()
+
+        createStars();
+
+        // Load saved coordinates if available
+        loadGameProgress();
+
+        // Pick a random object as the target only if no target is loaded
+        if (!targetObject) {
+          pickRandomTarget();
         }
 
-        // Warp handling
-        if (warpInProgress) {
-          // Accelerate to max speed
-          speed = Math.min(maxSpeed, speed + warpAcceleration * deltaTime);
-          if (speed >= maxSpeed) {
-            speed = maxSpeed;
-            warpInProgress = false;
-            showWarpMessage('Warp Speed');
+        // Initialize the gimbal
+        initGimbal();
+      }
+
+      function animate() {
+        let deltaTime = clock.getDelta(); // Time elapsed since the last frame in seconds
+
+        if (!paused) {
+          // Update ship orientation based on key presses
+          if (keysPressed['w']) {
+            spaceship.rotateX(rotationSpeed); // Pitch up
           }
-        } else if (warpOutProgress) {
-          // Decelerate to 0
-          speed = Math.max(0, speed - warpDeceleration * deltaTime);
-          if (speed <= 0) {
-            speed = 0;
-            warpOutProgress = false;
-            showWarpMessage(null);
+          if (keysPressed['s']) {
+            spaceship.rotateX(-rotationSpeed); // Pitch down
+          }
+          if (keysPressed['a']) {
+            spaceship.rotateY(rotationSpeed); // Yaw left
+          }
+          if (keysPressed['d']) {
+            spaceship.rotateY(-rotationSpeed); // Yaw right
+          }
+          if (keysPressed['q']) {
+            spaceship.rotateZ(-rotationSpeed); // Roll left
+          }
+          if (keysPressed['e']) {
+            spaceship.rotateZ(rotationSpeed); // Roll right
+          }
+
+          // Warp handling
+          if (warpInProgress) {
+            // Accelerate to max speed
+            speed = Math.min(maxSpeed, speed + warpAcceleration * deltaTime);
+            if (speed >= maxSpeed) {
+              speed = maxSpeed;
+              warpInProgress = false;
+              showWarpMessage('Warp Speed');
+            }
+          } else if (warpOutProgress) {
+            // Decelerate to 0
+            speed = Math.max(0, speed - warpDeceleration * deltaTime);
+            if (speed <= 0) {
+              speed = 0;
+              warpOutProgress = false;
+              showWarpMessage(null);
+            }
+          } else {
+            // Super thrusters
+            if (isSuperAccelerating) {
+              speed = Math.min(maxSpeed, speed + superAcceleration * deltaTime);
+            }
+            if (isSuperDecelerating) {
+              speed = Math.max(0, speed - superDeceleration * deltaTime);
+            }
+            // Throttle
+            if (keysPressed['up']) {
+              speed = Math.min(maxSpeed, speed + normalAcceleration * deltaTime);
+            }
+            if (keysPressed['down']) {
+              speed = Math.max(-100, speed - normalAcceleration * deltaTime);
+            }
+          }
+
+          // Move spaceship forward based on current orientation
+          let direction = new THREE.Vector3(0, 0, -1); // Local forward direction
+          direction.applyQuaternion(spaceship.quaternion); // Rotate to global direction
+          direction.multiplyScalar(speed * deltaTime); // Scale by speed and deltaTime
+          spaceship.position.add(direction);
+
+          // Update camera to follow the spaceship
+          camera.position.copy(spaceship.position);
+          camera.quaternion.copy(spaceship.quaternion);
+
+          gimbalSphere.quaternion.copy(spaceship.quaternion.clone().invert());
+
+          // Move asteroids and regenerate if they are too far from the ship
+          asteroids.forEach(function (asteroid) {
+            let distance = asteroid.position.distanceTo(spaceship.position);
+            if (distance > 5000) { // If asteroid is too far, reposition it
+              resetAsteroidPosition(asteroid);
+            }
+          });
+
+          if (targetObject && !goalAchieved) {
+            // Calculate the projected size of the target object
+            const objPosition = targetObject.position.clone();
+            const screenPos = projectToScreen(objPosition);
+
+            if (screenPos) {
+              const cameraToObjDistance = targetObject.position.distanceTo(camera.position);
+              const fov = camera.fov * (Math.PI / 180); // Convert FOV to radians
+              const size = targetObject.userData.size; // Actual size of the object
+
+              const screenHeight = window.innerHeight;
+              // Calculate the projected size using the formula
+              let projectedSize =
+                (size / cameraToObjDistance) *
+                (screenHeight / (2 * Math.tan(fov / 2)));
+
+              // If projected size fills about 20% of the view height
+              if (projectedSize >= screenHeight * 0.2) {
+                // Player has found the target object
+                goalAchieved = true;
+                const goalNotification = document.getElementById('goal-notification');
+                goalNotification.innerHTML = `Congratulations! You have found the star.<br>You can reset the game to start a new hunt.`;
+              }
+            }
+          }
+
+          // Update speedometer
+          updateSpeedometer();
+
+          // Update object info based on mouse position
+          updateObjectInfo();
+
+          // Update coordinates display
+          updateCoordinates();
+        }
+
+        renderer.render(scene, camera);
+
+        // Render the gimbal scene
+        gimbalRenderer.render(gimbalScene, gimbalCamera);
+
+        // Request the next frame
+        requestAnimationFrame(animate);
+      }
+
+      function initGimbal() {
+        // Create the gimbal scene
+        gimbalScene = new THREE.Scene();
+
+        // Create a camera for the gimbal
+        gimbalCamera = new THREE.PerspectiveCamera(28, 1, 0.1, 1000);
+        gimbalCamera.position.set(0, 0, 5);
+        gimbalCamera.lookAt(0, 0, 0);
+
+        // Create the gimbal renderer using the existing canvas
+        const gimbalCanvas = document.getElementById('gimbal-canvas');
+        gimbalRenderer = new THREE.WebGLRenderer({ alpha: true, canvas: gimbalCanvas });
+        gimbalRenderer.setSize(200, 200);
+        gimbalRenderer.setClearColor(0x000000, 0); // Transparent background
+
+        // Create the gimbal sphere with less dense mesh
+        const geometry = new THREE.SphereGeometry(1, 16, 16);
+        const material = new THREE.MeshBasicMaterial({ color: 0x888888, wireframe: true });
+        gimbalSphere = new THREE.Mesh(geometry, material);
+        gimbalScene.add(gimbalSphere);
+
+        // Create markers for each axis
+        const markerGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+
+        // X-axis markers
+        const xPositiveMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 }); // Bright green
+        const xNegativeMaterial = new THREE.MeshBasicMaterial({ color: 0x006600 }); // Dark green
+        const xPositiveMarker = new THREE.Mesh(markerGeometry, xPositiveMaterial);
+        const xNegativeMarker = new THREE.Mesh(markerGeometry, xNegativeMaterial);
+        xPositiveMarker.position.set(1, 0, 0); // On positive X-axis
+        xNegativeMarker.position.set(-1, 0, 0); // On negative X-axis
+        gimbalSphere.add(xPositiveMarker);
+        gimbalSphere.add(xNegativeMarker);
+
+        // Y-axis markers
+        const yPositiveMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff }); // Bright blue
+        const yNegativeMaterial = new THREE.MeshBasicMaterial({ color: 0x000066 }); // Dark blue
+        const yPositiveMarker = new THREE.Mesh(markerGeometry, yPositiveMaterial);
+        const yNegativeMarker = new THREE.Mesh(markerGeometry, yNegativeMaterial);
+        yPositiveMarker.position.set(0, 1, 0); // On positive Y-axis
+        yNegativeMarker.position.set(0, -1, 0); // On negative Y-axis
+        gimbalSphere.add(yPositiveMarker);
+        gimbalSphere.add(yNegativeMarker);
+
+        // Z-axis markers
+        const zPositiveMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 }); // Bright red
+        const zNegativeMaterial = new THREE.MeshBasicMaterial({ color: 0x660000 }); // Dark red
+        const zPositiveMarker = new THREE.Mesh(markerGeometry, zPositiveMaterial);
+        const zNegativeMarker = new THREE.Mesh(markerGeometry, zNegativeMaterial);
+        zPositiveMarker.position.set(0, 0, 1); // On positive Z-axis
+        zNegativeMarker.position.set(0, 0, -1); // On negative Z-axis
+        gimbalSphere.add(zPositiveMarker);
+        gimbalSphere.add(zNegativeMarker);
+
+        // Add a single stationary arrow-head inside the gimbal sphere, angled slightly upward
+        // Define the shape of the V-shaped arrow
+        const arrowShape = new THREE.Shape();
+        arrowShape.moveTo(-0.2, -0.2);
+        arrowShape.lineTo(0, 0.2);
+        arrowShape.lineTo(0.2, -0.2);
+        arrowShape.lineTo(0.1, -0.2);
+
+        // Extrude settings to make the shape flat
+        const arrowExtrudeSettings = {
+          steps: 1,
+          depth: 0.02,
+          bevelEnabled: false
+        };
+
+        // Create the geometry and material for the arrow
+        const arrowGeometry = new THREE.ExtrudeGeometry(arrowShape, arrowExtrudeSettings);
+        const arrowMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 }); // Yellow for visibility
+        const arrowMesh = new THREE.Mesh(arrowGeometry, arrowMaterial);
+
+        // Rotate the arrow slightly upward for better visibility
+        arrowMesh.rotation.x = Math.PI / 3; // 60 degrees upward
+
+        // Position the arrow at the center of the sphere
+        arrowMesh.position.set(0, 0, 0);
+
+        // Add the arrow to the gimbal scene
+        gimbalScene.add(arrowMesh);
+      }
+
+      function pickRandomTarget() {
+        targetObject = stars[Math.floor(Math.random() * stars.length)];
+        const objPosition = targetObject.position;
+        const goalNotification = document.getElementById('goal-notification');
+        goalNotification.innerHTML = `Goal: Find the star<br>X: ${Math.round(objPosition.x)}<br>Y: ${Math.round(objPosition.y)}<br>Z: ${Math.round(objPosition.z)}`;
+        goalAchieved = false;
+      }
+
+      function saveGameProgress() {
+        const position = spaceship.position;
+        const quaternion = spaceship.quaternion;
+        const coordinates = {
+          spaceship: {
+            position: {
+              x: position.x.toFixed(2),
+              y: position.y.toFixed(2),
+              z: position.z.toFixed(2)
+            },
+            orientation: quaternion.toArray()
+          },
+          goal: {
+            position: targetObject ? {
+              x: Math.round(targetObject.position.x).toString().padStart(4, '0'),
+              y: Math.round(targetObject.position.y).toString().padStart(4, '0'),
+              z: Math.round(targetObject.position.z).toString().padStart(4, '0')
+            } : null
+          },
+          objects: []
+        };
+
+        // Save stars
+        stars.forEach(obj => {
+          coordinates.objects.push({
+            position: {
+              x: Math.round(obj.position.x).toString().padStart(4, '0'),
+              y: Math.round(obj.position.y).toString().padStart(4, '0'),
+              z: Math.round(obj.position.z).toString().padStart(4, '0')
+            },
+            size: obj.userData.size
+          });
+        });
+
+        // Save to localStorage
+        try {
+          localStorage.setItem('spaceshipData', JSON.stringify(coordinates));
+          // Show save confirmation message
+          showSaveMessage();
+        } catch (e) {
+          console.error('Failed to save game progress:', e);
+          alert('Failed to save game progress. The data size might be too large.');
+        }
+      }
+
+      // Ensure that when objects are loaded, targetObject can be found
+      function loadGameProgress() {
+        const savedData = localStorage.getItem('spaceshipData');
+        if (savedData) {
+          const data = JSON.parse(savedData);
+          if (data.spaceship) {
+            const { position, orientation } = data.spaceship;
+
+            // Load spaceship position
+            spaceship.position.set(parseFloat(position.x), parseFloat(position.y), parseFloat(position.z));
+
+            // Load spaceship orientation using fromArray
+            spaceship.quaternion.fromArray(orientation);
+
+            // Update camera to match spaceship's orientation
+            camera.quaternion.copy(spaceship.quaternion);
+          }
+
+          // Load stars
+          if (data.objects && Array.isArray(data.objects)) {
+            data.objects.forEach(objData => {
+              // Parse positions as integers
+              let parsedPosition = {
+                x: parseInt(objData.position.x, 10),
+                y: parseInt(objData.position.y, 10),
+                z: parseInt(objData.position.z, 10)
+              };
+              createStar(objData.size, parsedPosition);
+            });
+          }
+
+          // Handle goal after loading objects
+          if (data.goal && data.goal.position) {
+            const { position } = data.goal;
+
+            // Find the target object based on position
+            targetObject = stars.find(obj => {
+              return Math.round(obj.position.x) === parseInt(position.x, 10) &&
+                Math.round(obj.position.y) === parseInt(position.y, 10) &&
+                Math.round(obj.position.z) === parseInt(position.z, 10);
+            });
+
+            // Update goal notification
+            if (targetObject) {
+              const objPosition = targetObject.position;
+              const goalNotification = document.getElementById('goal-notification');
+              goalNotification.innerHTML = `Goal: Find the star<br>X: ${Math.round(objPosition.x)}<br>Y: ${Math.round(objPosition.y)}<br>Z: ${Math.round(objPosition.z)}`;
+              goalAchieved = false;
+            } else {
+              console.warn("Target object not found after loading.");
+            }
           }
         } else {
-          // Super thrusters
-          if (isSuperAccelerating) {
-            speed = Math.min(maxSpeed, speed + superAcceleration * deltaTime);
-          }
-          if (isSuperDecelerating) {
-            speed = Math.max(0, speed - superDeceleration * deltaTime);
-          }
-          // Throttle
-          if (keysPressed['up']) {
-            speed = Math.min(maxSpeed, speed + normalAcceleration * deltaTime);
-          }
-          if (keysPressed['down']) {
-            speed = Math.max(-100, speed - normalAcceleration * deltaTime);
-          }
+          // Default to (0, 0, 0) if no saved data
+          spaceship.position.set(0, 0, 0);
+          spaceship.quaternion.set(0, 0, 0, 1);
+          camera.position.copy(spaceship.position);
         }
+      }
 
-        // Move spaceship forward based on current orientation
-        let direction = new THREE.Vector3(0, 0, -1); // Local forward direction
-        direction.applyQuaternion(spaceship.quaternion); // Rotate to global direction
-        direction.multiplyScalar(speed * deltaTime); // Scale by speed and deltaTime
-        spaceship.position.add(direction);
+      function resetGame() {
+        // Clear localStorage
+        localStorage.removeItem('spaceshipData');
 
-        // Update camera to follow the spaceship
+        // Reset spaceship position
+        spaceship.position.set(0, 0, 0);
+
+        // Reset spaceship orientation
+        spaceship.rotation.set(0, 0, 0); // Reset rotation angles to 0
+        spaceship.quaternion.set(0, 0, 0, 1); // Reset quaternion to default (no rotation)
+
+        // Update camera to match spaceship's reset orientation and position
         camera.position.copy(spaceship.position);
         camera.quaternion.copy(spaceship.quaternion);
 
+        // Reset gimbal orientation
         gimbalSphere.quaternion.copy(spaceship.quaternion.clone().invert());
 
-        // Move asteroids and regenerate if they are too far from the ship
+        updateCoordinates();
+
+        // Clear existing stars
+        clearStars();
+
+        createStars();
+
+        // Regenerate asteroids as they are not saved
         asteroids.forEach(function (asteroid) {
-          let distance = asteroid.position.distanceTo(spaceship.position);
-          if (distance > 5000) { // If asteroid is too far, reposition it
-            resetAsteroidPosition(asteroid);
-          }
+          resetAsteroidPosition(asteroid);
         });
 
-        // Move stars and regenerate if they are too far from the ship
-        stars.forEach(function (object) {
-          let distance = object.position.distanceTo(spaceship.position);
-          if (distance > object.userData.resetDistance && object !== targetObject) {
-            resetStarPosition(object, object.userData.size);
-          }
-        });
-
-        if (targetObject && !goalAchieved) {
-          // Calculate the projected size of the target object
-          const objPosition = targetObject.position.clone();
-          const screenPos = projectToScreen(objPosition);
-
-          if (screenPos) {
-            const cameraToObjDistance = targetObject.position.distanceTo(camera.position);
-            const fov = camera.fov * (Math.PI / 180); // Convert FOV to radians
-            const size = targetObject.userData.size; // Actual size of the object
-
-            const screenHeight = window.innerHeight;
-            // Calculate the projected size using the formula
-            let projectedSize =
-              (size / cameraToObjDistance) *
-              (screenHeight / (2 * Math.tan(fov / 2)));
-
-            // If projected size fills about 20% of the view height
-            if (projectedSize >= screenHeight * 0.2) {
-              // Player has found the target object
-              goalAchieved = true;
-              const goalNotification = document.getElementById('goal-notification');
-              goalNotification.innerHTML = `Congratulations! You have found the star.<br>You can reset the game to start a new hunt.`;
-            }
-          }
-        }
-
-        // Update speedometer
+        // Reset speed
+        speed = 0;
         updateSpeedometer();
 
-        // Update object info based on mouse position
-        updateObjectInfo();
+        // Hide warp message and paused message if visible
+        showWarpMessage(null);
+        showPausedMessage(false);
 
-        // Update coordinates display
-        updateCoordinates();
+        // Pick a new target object
+        pickRandomTarget();
       }
 
-      renderer.render(scene, camera);
+      function showSaveMessage() {
+        const saveMessage = document.getElementById('save-message');
+        saveMessage.style.display = 'block';
 
-      // Render the gimbal scene
-      gimbalRenderer.render(gimbalScene, gimbalCamera);
-
-      // Request the next frame
-      requestAnimationFrame(animate);
-    }
-
-    function createStars() {
-      // Generate initial stars
-      for (let i = 0; i < 500; i++) {
-        createStar();
+        // Hide the message after 2 seconds
+        setTimeout(() => {
+          saveMessage.style.display = 'none';
+        }, 2000);
       }
-    }
 
-    function initGimbal() {
-      // Create the gimbal scene
-      gimbalScene = new THREE.Scene();
+      function createAsteroids() {
+        for (let i = 0; i < 5000; i++) {
+          createAsteroid();
+        }
+      }
 
-      // Create a camera for the gimbal
-      gimbalCamera = new THREE.PerspectiveCamera(28, 1, 0.1, 1000);
-      gimbalCamera.position.set(0, 0, 5);
-      gimbalCamera.lookAt(0, 0, 0);
+      function createAsteroid(size, position) {
+        // Asteroid size from 0.5 to 2.5 units, with a standard distribution
+        size = size || getNormalRandom(1.5, 0.5); // Mean 1.5, SD 0.5
+        size = Math.max(0.5, Math.min(2.5, size)); // Clamp between 0.5 and 2.5
 
-      // Create the gimbal renderer using the existing canvas
-      const gimbalCanvas = document.getElementById('gimbal-canvas');
-      gimbalRenderer = new THREE.WebGLRenderer({ alpha: true, canvas: gimbalCanvas });
-      gimbalRenderer.setSize(200, 200);
-      gimbalRenderer.setClearColor(0x000000, 0); // Transparent background
+        let geometry = new THREE.DodecahedronGeometry(size);
 
-      // Create the gimbal sphere with less dense mesh
-      const geometry = new THREE.SphereGeometry(1, 16, 16);
-      const material = new THREE.MeshBasicMaterial({ color: 0x888888, wireframe: true });
-      gimbalSphere = new THREE.Mesh(geometry, material);
-      gimbalScene.add(gimbalSphere);
-
-      // Create markers for each axis
-      const markerGeometry = new THREE.SphereGeometry(0.1, 8, 8);
-
-      // X-axis markers
-      const xPositiveMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 }); // Bright green
-      const xNegativeMaterial = new THREE.MeshBasicMaterial({ color: 0x006600 }); // Dark green
-      const xPositiveMarker = new THREE.Mesh(markerGeometry, xPositiveMaterial);
-      const xNegativeMarker = new THREE.Mesh(markerGeometry, xNegativeMaterial);
-      xPositiveMarker.position.set(1, 0, 0); // On positive X-axis
-      xNegativeMarker.position.set(-1, 0, 0); // On negative X-axis
-      gimbalSphere.add(xPositiveMarker);
-      gimbalSphere.add(xNegativeMarker);
-
-      // Y-axis markers
-      const yPositiveMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff }); // Bright blue
-      const yNegativeMaterial = new THREE.MeshBasicMaterial({ color: 0x000066 }); // Dark blue
-      const yPositiveMarker = new THREE.Mesh(markerGeometry, yPositiveMaterial);
-      const yNegativeMarker = new THREE.Mesh(markerGeometry, yNegativeMaterial);
-      yPositiveMarker.position.set(0, 1, 0); // On positive Y-axis
-      yNegativeMarker.position.set(0, -1, 0); // On negative Y-axis
-      gimbalSphere.add(yPositiveMarker);
-      gimbalSphere.add(yNegativeMarker);
-
-      // Z-axis markers
-      const zPositiveMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 }); // Bright red
-      const zNegativeMaterial = new THREE.MeshBasicMaterial({ color: 0x660000 }); // Dark red
-      const zPositiveMarker = new THREE.Mesh(markerGeometry, zPositiveMaterial);
-      const zNegativeMarker = new THREE.Mesh(markerGeometry, zNegativeMaterial);
-      zPositiveMarker.position.set(0, 0, 1); // On positive Z-axis
-      zNegativeMarker.position.set(0, 0, -1); // On negative Z-axis
-      gimbalSphere.add(zPositiveMarker);
-      gimbalSphere.add(zNegativeMarker);
-
-      // Add a single stationary arrow-head inside the gimbal sphere, angled slightly upward
-      // Define the shape of the V-shaped arrow
-      const arrowShape = new THREE.Shape();
-      arrowShape.moveTo(-0.2, -0.2);
-      arrowShape.lineTo(0, 0.2);
-      arrowShape.lineTo(0.2, -0.2);
-      arrowShape.lineTo(0.1, -0.2);
-
-      // Extrude settings to make the shape flat
-      const arrowExtrudeSettings = {
-        steps: 1,
-        depth: 0.02,
-        bevelEnabled: false
-      };
-
-      // Create the geometry and material for the arrow
-      const arrowGeometry = new THREE.ExtrudeGeometry(arrowShape, arrowExtrudeSettings);
-      const arrowMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 }); // Yellow for visibility
-      const arrowMesh = new THREE.Mesh(arrowGeometry, arrowMaterial);
-
-      // Rotate the arrow slightly upward for better visibility
-      arrowMesh.rotation.x = Math.PI / 3; // 60 degrees upward
-
-      // Position the arrow at the center of the sphere
-      arrowMesh.position.set(0, 0, 0);
-
-      // Add the arrow to the gimbal scene
-      gimbalScene.add(arrowMesh);
-    }
-
-    function pickRandomTarget() {
-      targetObject = stars[Math.floor(Math.random() * stars.length)];
-      const objPosition = targetObject.position;
-      const goalNotification = document.getElementById('goal-notification');
-      goalNotification.innerHTML = `Goal: Find the star<br>X: ${Math.round(objPosition.x)}<br>Y: ${Math.round(objPosition.y)}<br>Z: ${Math.round(objPosition.z)}`;
-      goalAchieved = false;
-    }
-
-    function saveGameProgress() {
-      const position = spaceship.position;
-      const quaternion = spaceship.quaternion;
-      const coordinates = {
-        spaceship: {
-          position: {
-            x: position.x.toFixed(2),
-            y: position.y.toFixed(2),
-            z: position.z.toFixed(2)
-          },
-          orientation: quaternion.toArray()
-        },
-        goal: {
-          position: targetObject ? {
-            x: Math.round(targetObject.position.x).toString().padStart(4, '0'),
-            y: Math.round(targetObject.position.y).toString().padStart(4, '0'),
-            z: Math.round(targetObject.position.z).toString().padStart(4, '0')
-          } : null
-        },
-        objects: []
-      };
-
-      // Save stars
-      stars.forEach(obj => {
-        coordinates.objects.push({
-          position: {
-            x: Math.round(obj.position.x).toString().padStart(4, '0'),
-            y: Math.round(obj.position.y).toString().padStart(4, '0'),
-            z: Math.round(obj.position.z).toString().padStart(4, '0')
-          },
-          size: obj.userData.size
+        // Use MeshBasicMaterial instead of MeshLambertMaterial to reduce shader complexity
+        let material = new THREE.MeshBasicMaterial({
+          color: new THREE.Color(Math.random(), Math.random(), Math.random())
         });
-      });
 
-      // Save to localStorage
-      try {
-        localStorage.setItem('spaceshipData', JSON.stringify(coordinates));
-        // Show save confirmation message
-        showSaveMessage();
-      } catch (e) {
-        console.error('Failed to save game progress:', e);
-        alert('Failed to save game progress. The data size might be too large.');
-      }
-    }
+        let asteroid = new THREE.Mesh(geometry, material);
 
-    // Ensure that when objects are loaded, targetObject can be found
-    function loadGameProgress() {
-      const savedData = localStorage.getItem('spaceshipData');
-      if (savedData) {
-        const data = JSON.parse(savedData);
-        if (data.spaceship) {
-          const { position, orientation } = data.spaceship;
+        asteroid.userData.size = size;
 
-          // Load spaceship position
-          spaceship.position.set(parseFloat(position.x), parseFloat(position.y), parseFloat(position.z));
-
-          // Load spaceship orientation using fromArray
-          spaceship.quaternion.fromArray(orientation);
-
-          // Update camera to match spaceship's orientation
-          camera.quaternion.copy(spaceship.quaternion);
-        }
-
-        // Load stars
-        if (data.objects && Array.isArray(data.objects)) {
-          data.objects.forEach(objData => {
-            // Parse positions as integers
-            let parsedPosition = {
-              x: parseInt(objData.position.x, 10),
-              y: parseInt(objData.position.y, 10),
-              z: parseInt(objData.position.z, 10)
-            };
-            createStar(objData.size, parsedPosition);
-          });
-        }
-
-        // Handle goal after loading objects
-        if (data.goal && data.goal.position) {
-          const { position } = data.goal;
-
-          // Find the target object based on position
-          targetObject = stars.find(obj => {
-            return Math.round(obj.position.x) === parseInt(position.x, 10) &&
-              Math.round(obj.position.y) === parseInt(position.y, 10) &&
-              Math.round(obj.position.z) === parseInt(position.z, 10);
-          });
-
-          // Update goal notification
-          if (targetObject) {
-            const objPosition = targetObject.position;
-            const goalNotification = document.getElementById('goal-notification');
-            goalNotification.innerHTML = `Goal: Find the star<br>X: ${Math.round(objPosition.x)}<br>Y: ${Math.round(objPosition.y)}<br>Z: ${Math.round(objPosition.z)}`;
-            goalAchieved = false;
-          } else {
-            console.warn("Target object not found after loading.");
-          }
-        }
-      } else {
-        // Default to (0, 0, 0) if no saved data
-        spaceship.position.set(0, 0, 0);
-        spaceship.quaternion.set(0, 0, 0, 1);
-        camera.position.copy(spaceship.position);
-      }
-    }
-
-    function resetGame() {
-      // Clear localStorage
-      localStorage.removeItem('spaceshipData');
-
-      // Reset spaceship position
-      spaceship.position.set(0, 0, 0);
-
-      // Reset spaceship orientation
-      spaceship.rotation.set(0, 0, 0); // Reset rotation angles to 0
-      spaceship.quaternion.set(0, 0, 0, 1); // Reset quaternion to default (no rotation)
-
-      // Update camera to match spaceship's reset orientation and position
-      camera.position.copy(spaceship.position);
-      camera.quaternion.copy(spaceship.quaternion);
-
-      // Reset gimbal orientation
-      gimbalSphere.quaternion.copy(spaceship.quaternion.clone().invert());
-
-      updateCoordinates();
-
-      // Clear existing stars
-      clearStars();
-
-      createStars();
-
-      // Regenerate asteroids as they are not saved
-      asteroids.forEach(function (asteroid) {
-        resetAsteroidPosition(asteroid);
-      });
-
-      // Reset speed
-      speed = 0;
-      updateSpeedometer();
-
-      // Hide warp message and paused message if visible
-      showWarpMessage(null);
-      showPausedMessage(false);
-
-      // Pick a new target object
-      pickRandomTarget();
-    }
-
-    function showSaveMessage() {
-      const saveMessage = document.getElementById('save-message');
-      saveMessage.style.display = 'block';
-
-      // Hide the message after 2 seconds
-      setTimeout(() => {
-        saveMessage.style.display = 'none';
-      }, 2000);
-    }
-
-    function clearStars() {
-      // Helper function to dispose geometry and material safely
-      function disposeObject(obj) {
-        if (obj.geometry) {
-          obj.geometry.dispose();
-        }
-        if (obj.material) {
-          if (Array.isArray(obj.material)) {
-            obj.material.forEach(material => material.dispose());
-          } else {
-            obj.material.dispose();
-          }
-        }
-      }
-
-      // Remove and dispose stars
-      stars.forEach(obj => {
-        scene.remove(obj);
-        disposeObject(obj);
-        if (obj.children && obj.children.length > 0) {
-          obj.children.forEach(child => {
-            disposeObject(child);
-          });
-        }
-      });
-      stars = [];
-    }
-
-    function createAsteroid(size, position) {
-      // Asteroid size from 0.5 to 2.5 units, with a standard distribution
-      size = size || getNormalRandom(1.5, 0.5); // Mean 1.5, SD 0.5
-      size = Math.max(0.5, Math.min(2.5, size)); // Clamp between 0.5 and 2.5
-
-      let geometry = new THREE.DodecahedronGeometry(size);
-
-      // Use MeshBasicMaterial instead of MeshLambertMaterial to reduce shader complexity
-      let material = new THREE.MeshBasicMaterial({
-        color: new THREE.Color(Math.random(), Math.random(), Math.random())
-      });
-
-      let asteroid = new THREE.Mesh(geometry, material);
-
-      asteroid.userData.size = size;
-
-      if (position) {
-        asteroid.position.set(parseFloat(position.x), parseFloat(position.y), parseFloat(position.z));
-      } else {
-        resetAsteroidPosition(asteroid);
-      }
-
-      scene.add(asteroid);
-      asteroids.push(asteroid);
-
-      return asteroid;
-    }
-
-    function createStar(size, position) {
-      // Star size from 20 to 50 units
-      size = size || 20 + Math.random() * 30;
-
-      // Color gradient from pale red to pale blue based on size
-      let colorRatio = (size - 20) / 30; // 0 to 1
-      let color = new THREE.Color();
-      color.setHSL(0.66 - (0.66 * colorRatio), 0.8, 0.7); // From red to blue
-
-      let geometry = new THREE.SphereGeometry(size, 32, 32);
-      let material = new THREE.MeshBasicMaterial({ color: color });
-      let star = new THREE.Mesh(geometry, material);
-
-      star.userData = {
-        size: size,
-        resetDistance: 50000
-      };
-
-      if (position) {
-        star.position.set(parseFloat(position.x), parseFloat(position.y), parseFloat(position.z));
-      } else {
-        resetStarPosition(star, size);
-      }
-
-      scene.add(star);
-      stars.push(star);
-
-      return star;
-    }
-
-    function resetAsteroidPosition(asteroid) {
-      // Position asteroids very close to the spaceship
-      let position = new THREE.Vector3();
-      position.copy(spaceship.position);
-
-      // Random position within a smaller sphere around the ship
-      let radius = 1000 + Math.random() * 2000; // Between 1,000 and 3,000 units
-      let phi = Math.acos(2 * Math.random() - 1);
-      let theta = 2 * Math.PI * Math.random();
-
-      position.x += radius * Math.sin(phi) * Math.cos(theta);
-      position.y += radius * Math.sin(phi) * Math.sin(theta);
-      position.z += radius * Math.cos(phi);
-
-      asteroid.position.copy(position);
-    }
-
-    function resetStarPosition(object, size) {
-      // Position stars randomly around the spaceship
-      let position = new THREE.Vector3();
-      position.copy(spaceship.position);
-
-      // Random position within a sphere
-      let radius = 30000 + Math.random() * 20000; // Between 30,000 and 50,000 units
-      let phi = Math.acos(2 * Math.random() - 1);
-      let theta = 2 * Math.PI * Math.random();
-
-      position.x += radius * Math.sin(phi) * Math.cos(theta);
-      position.y += radius * Math.sin(phi) * Math.sin(theta);
-      position.z += radius * Math.cos(phi);
-
-      object.position.copy(position);
-    }
-
-    function onKeyDown(event) {
-      keysPressed[event.key.toLowerCase()] = true;
-
-      // Handle throttle controls regardless of axis selection
-      if (event.code === 'ArrowUp') {
-        keysPressed['up'] = true;
-      } else if (event.code === 'ArrowDown') {
-        keysPressed['down'] = true;
-      } else if (event.code === 'KeyP') { // 'P' key
-        paused = !paused;
-        showPausedMessage(paused);
-        clock.getDelta(); // Reset delta to avoid large jumps
-      } else if (event.code === 'Enter' && event.shiftKey) { // Shift + Enter
-        if (!warpInProgress) {
-          isWarping = true;
-          warpInProgress = true;
-          warpOutProgress = false; // Stop decelerating if we were
-          showWarpMessage('Warp Engaged');
-        }
-      } else if (event.code === 'Space' && event.shiftKey) { // Shift + Space
-        if (!warpOutProgress) {
-          warpOutProgress = true;
-          warpInProgress = false; // Stop accelerating if we were
-          isWarping = false;
-          showWarpMessage('Warp Disengaged');
-        }
-      } else if (event.code === 'Enter' && !event.shiftKey) { // Enter key
-        isSuperAccelerating = true;
-      } else if (event.code === 'Space' && !event.shiftKey) { // Space bar
-        isSuperDecelerating = true;
-      }
-
-      if (event.key.toLowerCase() === 'c') {
-        const overlay = document.getElementById("overlay");
-        const display = window.getComputedStyle(overlay).display;
-        if (display === "none") {
-          overlay.style.display = "block";
+        if (position) {
+          asteroid.position.set(parseFloat(position.x), parseFloat(position.y), parseFloat(position.z));
         } else {
-          overlay.style.display = "none";
+          resetAsteroidPosition(asteroid);
         }
-      }
-    }
 
-    function onKeyUp(event) {
-      keysPressed[event.key.toLowerCase()] = false;
+        scene.add(asteroid);
+        asteroids.push(asteroid);
 
-      if (event.code === 'ArrowUp') { // Up arrow
-        keysPressed['up'] = false;
-      } else if (event.code === 'ArrowDown') { // Down arrow
-        keysPressed['down'] = false;
-      } else if (event.code === 'Enter' && !event.shiftKey) { // Enter key
-        isSuperAccelerating = false;
-      } else if (event.code === 'Space' && !event.shiftKey) { // Space bar
-        isSuperDecelerating = false;
-      }
-    }
-
-    function onMouseMove(event) {
-      // Calculate mouse position in normalized device coordinates (-1 to +1)
-      mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-      mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
-
-      // Store pixel positions for hover area calculation
-      mousePixelX = event.clientX;
-      mousePixelY = event.clientY;
-    }
-
-    /**
-     * Projects a 3D position to 2D screen coordinates.
-     * @param {THREE.Vector3} position - The 3D position to project.
-     * @returns {THREE.Vector2|null} - The 2D screen position in pixels or null if behind the camera.
-     */
-    function projectToScreen(position) {
-      let vector = position.clone().project(camera);
-
-      // Only consider objects in front of the camera
-      if (vector.z > 1 || vector.z < -1) {
-        return null; // Object is behind or too far away
+        return asteroid;
       }
 
-      // Convert normalized device coordinates (NDC) to screen coordinates
-      let x = (vector.x + 1) / 2 * window.innerWidth;
-      let y = (-vector.y + 1) / 2 * window.innerHeight;
-
-      return new THREE.Vector2(x, y);
-    }
-
-    function updateObjectInfo() {
-      const minHoverSize = 30; // Minimum hover area size in pixels
-      const objectInfo = document.getElementById('object-info');
-      objectInfo.innerHTML = ''; // Reset the info display
-
-      let hoveredObjects = [];
-
-      // Iterate through each star to check hover
-      for (let obj of stars) {
-        // Skip if object is not visible
-        if (!obj.visible) continue;
-
-        // Get the object's 3D position
-        let objPosition = obj.position.clone();
-
-        // Project to 2D screen space
-        let screenPos = projectToScreen(objPosition);
-
-        // If projection failed (object behind camera), skip
-        if (!screenPos) continue;
-
-        // Compute the projected size in pixels
-        const cameraToObjDistance = obj.position.distanceTo(spaceship.position);
-        const fov = camera.fov * (Math.PI / 180); // Convert FOV to radians
-        const size = obj.userData.size; // Actual size of the object
-
-        const screenHeight = window.innerHeight;
-        // Calculate the projected size using the formula
-        let projectedSize =
-          (size / cameraToObjDistance) *
-          (screenHeight / (2 * Math.tan(fov / 2)));
-
-        // Ensure a minimum hover area size
-        let hoverRadius = Math.max(projectedSize, minHoverSize / 2);
-
-        // Define the hover box boundaries
-        let left = screenPos.x - hoverRadius;
-        let right = screenPos.x + hoverRadius;
-        let top = screenPos.y - hoverRadius;
-        let bottom = screenPos.y + hoverRadius;
-
-        // Check if mouse is within the hover box
-        if (
-          mousePixelX >= left &&
-          mousePixelX <= right &&
-          mousePixelY >= top &&
-          mousePixelY <= bottom
-        ) {
-          // Calculate distance from spaceship to object
-          let distance = obj.position.distanceTo(spaceship.position);
-
-          hoveredObjects.push({ object: obj, distance: distance });
+      function createStars() {
+        for (let i = 0; i < 5000; i++) {
+          createStar();
         }
       }
 
-      if (hoveredObjects.length > 0) {
-        // Find the closest object
-        hoveredObjects.sort((a, b) => a.distance - b.distance);
-        let closestObject = hoveredObjects[0].object;
-        let closestDistance = hoveredObjects[0].distance;
+      function createStar(size, position) {
+        size = size || 200 + Math.random() * 300; // Star size between 200 and 500 units
 
-        const objPosition = closestObject.position;
+        // Color gradient from pale red to pale blue based on size
+        let colorRatio = (size - 200) / 300; // 0 to 1
+        let color = new THREE.Color();
+        color.setHSL(0.66 - (0.66 * colorRatio), 0.8, 0.7); // From red to blue
 
-        // Display coordinates as integers stacked vertically
-        objectInfo.innerHTML = `
+        let geometry = new THREE.SphereGeometry(size, 32, 32);
+        let material = new THREE.MeshBasicMaterial({ color: color });
+        let star = new THREE.Mesh(geometry, material);
+
+        star.userData = {
+          size: size
+        };
+
+        if (position) {
+          star.position.set(parseFloat(position.x), parseFloat(position.y), parseFloat(position.z));
+        } else {
+          // Position stars randomly at greater distances with even distribution
+          let radiusMin = 1000;      // Minimum radius
+          let radiusMax = 1000000;   // Maximum radius
+
+          // Generate a uniformly distributed radius using the cubic distribution
+          let u = Math.random();
+          let radius = Math.pow(u * (Math.pow(radiusMax, 3) - Math.pow(radiusMin, 3)) + Math.pow(radiusMin, 3), 1 / 3);
+
+          // Spherical coordinates
+          let phi = Math.acos(2 * Math.random() - 1);
+          let theta = 2 * Math.PI * Math.random();
+
+          // Convert spherical coordinates to Cartesian coordinates
+          let x = radius * Math.sin(phi) * Math.cos(theta);
+          let y = radius * Math.sin(phi) * Math.sin(theta);
+          let z = radius * Math.cos(phi);
+
+          star.position.set(x, y, z);
+        }
+
+        scene.add(star);
+        stars.push(star);
+
+        return star;
+      }
+
+      function resetAsteroidPosition(asteroid) {
+        // Position asteroids very close to the spaceship
+        let position = new THREE.Vector3();
+        position.copy(spaceship.position);
+
+        // Random position within a smaller sphere around the ship
+        let radius = 1000 + Math.random() * 2000; // Between 1,000 and 3,000 units
+        let phi = Math.acos(2 * Math.random() - 1);
+        let theta = 2 * Math.PI * Math.random();
+
+        position.x += radius * Math.sin(phi) * Math.cos(theta);
+        position.y += radius * Math.sin(phi) * Math.sin(theta);
+        position.z += radius * Math.cos(phi);
+
+        asteroid.position.copy(position);
+      }
+
+      function onKeyDown(event) {
+        keysPressed[event.key.toLowerCase()] = true;
+
+        // Handle throttle controls regardless of axis selection
+        if (event.code === 'ArrowUp') {
+          keysPressed['up'] = true;
+        } else if (event.code === 'ArrowDown') {
+          keysPressed['down'] = true;
+        } else if (event.code === 'KeyP') { // 'P' key
+          paused = !paused;
+          showPausedMessage(paused);
+          clock.getDelta(); // Reset delta to avoid large jumps
+        } else if (event.code === 'Enter' && event.shiftKey) { // Shift + Enter
+          if (!warpInProgress) {
+            isWarping = true;
+            warpInProgress = true;
+            warpOutProgress = false; // Stop decelerating if we were
+            showWarpMessage('Warp Engaged');
+          }
+        } else if (event.code === 'Space' && event.shiftKey) { // Shift + Space
+          if (!warpOutProgress) {
+            warpOutProgress = true;
+            warpInProgress = false; // Stop accelerating if we were
+            isWarping = false;
+            showWarpMessage('Warp Disengaged');
+          }
+        } else if (event.code === 'Enter' && !event.shiftKey) { // Enter key
+          isSuperAccelerating = true;
+        } else if (event.code === 'Space' && !event.shiftKey) { // Space bar
+          isSuperDecelerating = true;
+        }
+
+        if (event.key.toLowerCase() === 'c') {
+          const overlay = document.getElementById("overlay");
+          const display = window.getComputedStyle(overlay).display;
+          if (display === "none") {
+            overlay.style.display = "block";
+          } else {
+            overlay.style.display = "none";
+          }
+        }
+      }
+
+      function onKeyUp(event) {
+        keysPressed[event.key.toLowerCase()] = false;
+
+        if (event.code === 'ArrowUp') { // Up arrow
+          keysPressed['up'] = false;
+        } else if (event.code === 'ArrowDown') { // Down arrow
+          keysPressed['down'] = false;
+        } else if (event.code === 'Enter' && !event.shiftKey) { // Enter key
+          isSuperAccelerating = false;
+        } else if (event.code === 'Space' && !event.shiftKey) { // Space bar
+          isSuperDecelerating = false;
+        }
+      }
+
+      function onMouseMove(event) {
+        // Calculate mouse position in normalized device coordinates (-1 to +1)
+        mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+
+        // Store pixel positions for hover area calculation
+        mousePixelX = event.clientX;
+        mousePixelY = event.clientY;
+      }
+
+      /**
+       * Projects a 3D position to 2D screen coordinates.
+       * @param {THREE.Vector3} position - The 3D position to project.
+       * @returns {THREE.Vector2|null} - The 2D screen position in pixels or null if behind the camera.
+       */
+      function projectToScreen(position) {
+        let vector = position.clone().project(camera);
+
+        // Only consider objects in front of the camera
+        if (vector.z > 1 || vector.z < -1) {
+          return null; // Object is behind or too far away
+        }
+
+        // Convert normalized device coordinates (NDC) to screen coordinates
+        let x = (vector.x + 1) / 2 * window.innerWidth;
+        let y = (-vector.y + 1) / 2 * window.innerHeight;
+
+        return new THREE.Vector2(x, y);
+      }
+
+      function updateObjectInfo() {
+        const minHoverSize = 30; // Minimum hover area size in pixels
+        const objectInfo = document.getElementById('object-info');
+        objectInfo.innerHTML = ''; // Reset the info display
+
+        let hoveredObjects = [];
+
+        // Iterate through each star to check hover
+        for (let obj of stars) {
+          // Skip if object is not visible
+          if (!obj.visible) continue;
+
+          // Get the object's 3D position
+          let objPosition = obj.position.clone();
+
+          // Project to 2D screen space
+          let screenPos = projectToScreen(objPosition);
+
+          // If projection failed (object behind camera), skip
+          if (!screenPos) continue;
+
+          // Compute the projected size in pixels
+          const cameraToObjDistance = obj.position.distanceTo(spaceship.position);
+          const fov = camera.fov * (Math.PI / 180); // Convert FOV to radians
+          const size = obj.userData.size; // Actual size of the object
+
+          const screenHeight = window.innerHeight;
+          // Calculate the projected size using the formula
+          let projectedSize =
+            (size / cameraToObjDistance) *
+            (screenHeight / (2 * Math.tan(fov / 2)));
+
+          // Ensure a minimum hover area size
+          let hoverRadius = Math.max(projectedSize, minHoverSize / 2);
+
+          // Define the hover box boundaries
+          let left = screenPos.x - hoverRadius;
+          let right = screenPos.x + hoverRadius;
+          let top = screenPos.y - hoverRadius;
+          let bottom = screenPos.y + hoverRadius;
+
+          // Check if mouse is within the hover box
+          if (
+            mousePixelX >= left &&
+            mousePixelX <= right &&
+            mousePixelY >= top &&
+            mousePixelY <= bottom
+          ) {
+            // Calculate distance from spaceship to object
+            let distance = obj.position.distanceTo(spaceship.position);
+
+            hoveredObjects.push({ object: obj, distance: distance });
+          }
+        }
+
+        if (hoveredObjects.length > 0) {
+          // Find the closest object
+          hoveredObjects.sort((a, b) => a.distance - b.distance);
+          let closestObject = hoveredObjects[0].object;
+          let closestDistance = hoveredObjects[0].distance;
+
+          const objPosition = closestObject.position;
+
+          // Display coordinates as integers stacked vertically
+          objectInfo.innerHTML = `
           Star<br>
           X: ${parseInt(objPosition.x, 10)}<br>
           Y: ${parseInt(objPosition.y, 10)}<br>
@@ -1024,64 +989,93 @@
           Distance: ${parseInt(closestDistance, 10)}
         `;
 
+        }
       }
-    }
 
-    function showWarpMessage(message) {
-      const warpMessage = document.getElementById('warp-message');
-      if (message) {
-        warpMessage.textContent = message;
-        warpMessage.style.display = 'block';
-      } else {
-        warpMessage.style.display = 'none';
+      function showWarpMessage(message) {
+        const warpMessage = document.getElementById('warp-message');
+        if (message) {
+          warpMessage.textContent = message;
+          warpMessage.style.display = 'block';
+        } else {
+          warpMessage.style.display = 'none';
+        }
       }
-    }
 
-    function updateSpeedometer() {
-      const speedBar = document.getElementById('speed-bar');
-      const speedText = document.getElementById('speed-text');
+      function updateSpeedometer() {
+        const speedBar = document.getElementById('speed-bar');
+        const speedText = document.getElementById('speed-text');
 
-      // Calculate the width percentage based on speed
-      let speedPercent = (speed / maxSpeed) * 100;
-      speedBar.style.width = speedPercent + '%';
+        // Calculate the width percentage based on speed
+        let speedPercent = (speed / maxSpeed) * 100;
+        speedBar.style.width = speedPercent + '%';
 
-      // Update the speed text
-      speedText.textContent = 'Speed: ' + speed.toFixed(1) + ' km/s';
-    }
+        // Update the speed text
+        speedText.textContent = 'Speed: ' + speed.toFixed(1) + ' km/s';
+      }
 
-    function showPausedMessage(show) {
-      const pausedMessage = document.getElementById('paused-message');
-      pausedMessage.style.display = show ? 'block' : 'none';
-    }
+      function showPausedMessage(show) {
+        const pausedMessage = document.getElementById('paused-message');
+        pausedMessage.style.display = show ? 'block' : 'none';
+      }
 
-    function updateCoordinates() {
-      const x = spaceship.position.x.toFixed(2);
-      const y = spaceship.position.y.toFixed(2);
-      const z = spaceship.position.z.toFixed(2);
-      document.getElementById('coordinate-x').textContent = `X: ${x}`;
-      document.getElementById('coordinate-y').textContent = `Y: ${y}`;
-      document.getElementById('coordinate-z').textContent = `Z: ${z}`;
-    }
+      function updateCoordinates() {
+        const x = spaceship.position.x.toFixed(2);
+        const y = spaceship.position.y.toFixed(2);
+        const z = spaceship.position.z.toFixed(2);
+        document.getElementById('coordinate-x').textContent = `X: ${x}`;
+        document.getElementById('coordinate-y').textContent = `Y: ${y}`;
+        document.getElementById('coordinate-z').textContent = `Z: ${z}`;
+      }
 
-    // Function to generate normally distributed random numbers
-    function getNormalRandom(mean, stdDev) {
-      let u = 0, v = 0;
-      while (u === 0) u = Math.random(); // Converting [0,1) to (0,1)
-      while (v === 0) v = Math.random();
-      let num = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
-      num = num * stdDev + mean;
-      return num;
-    }
+      function clearStars() {
+        // Helper function to dispose geometry and material safely
+        function disposeObject(obj) {
+          if (obj.geometry) {
+            obj.geometry.dispose();
+          }
+          if (obj.material) {
+            if (Array.isArray(obj.material)) {
+              obj.material.forEach(material => material.dispose());
+            } else {
+              obj.material.dispose();
+            }
+          }
+        }
 
-    window.addEventListener('resize', function () {
-      let width = window.innerWidth;
-      let height = window.innerHeight;
-      renderer.setSize(width, height);
-      camera.aspect = width / height;
-      camera.updateProjectionMatrix();
-    });
+        // Remove and dispose stars
+        stars.forEach(obj => {
+          scene.remove(obj);
+          disposeObject(obj);
+          if (obj.children && obj.children.length > 0) {
+            obj.children.forEach(child => {
+              disposeObject(child);
+            });
+          }
+        });
+        stars = [];
+      }
 
-  </script>
-</body>
+      // Function to generate normally distributed random numbers
+      function getNormalRandom(mean, stdDev) {
+        let u = 0, v = 0;
+        while (u === 0) u = Math.random(); // Converting [0,1) to (0,1)
+        while (v === 0) v = Math.random();
+        let num = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+        num = num * stdDev + mean;
+        return num;
+      }
+
+      window.addEventListener('resize', function () {
+        let width = window.innerWidth;
+        let height = window.innerHeight;
+        renderer.setSize(width, height);
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+      });
+
+
+    </script>
+  </body>
 
 </html>
