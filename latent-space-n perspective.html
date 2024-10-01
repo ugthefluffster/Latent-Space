@@ -301,6 +301,9 @@
       let asteroids = [];
       let stars = [];
 
+      const totalNumberOfStars = 6000;
+      const totalNumbersOfAsteroids = 0;
+
       let speed = 0;
       const rotationSpeed = 0.02;
       const maxSpeed = 10000;
@@ -327,9 +330,8 @@
       let mousePixelX = 0;
       let mousePixelY = 0;
 
-      const sliceThickness = 400000;
-      const totalNumberOfStars = 6000;
-      const totalNumbersOfAsteroids = 500;
+      const sliceThickness = 1000000; // Determines how far stars in unmapped dimensions remain visible from the 3D slice.
+      const perspectiveFactor = 150000; // Controls the rate of size shrinkage for stars based on distance in unmapped dimensions.
 
       const textureLoader = new THREE.TextureLoader();
       const texture = textureLoader.load(
@@ -916,9 +918,9 @@
 
         return new THREE.Vector2(x, y);
       }
-
       function updateObjectInfo() {
         const minHoverSize = 30;
+        const maxHoverSize = 60; 
         const objectInfo = document.getElementById('object-info');
         objectInfo.innerHTML = '';
 
@@ -930,7 +932,6 @@
           if (!obj.visible) continue;
 
           let objPosition = obj.position.clone();
-
           let screenPos = projectToScreen(objPosition);
 
           if (!screenPos) continue;
@@ -940,11 +941,13 @@
           const size = obj.userData.size;
 
           const screenHeight = window.innerHeight;
+
           let projectedSize =
             (size / cameraToObjDistance) *
             (screenHeight / (2 * Math.tan(fov / 2)));
 
-          let hoverRadius = Math.max(projectedSize, minHoverSize / 2);
+          // Apply limits to the hover radius
+          let hoverRadius = Math.max(Math.min(projectedSize, maxHoverSize), minHoverSize / 2);
 
           let left = screenPos.x - hoverRadius;
           let right = screenPos.x + hoverRadius;
@@ -958,7 +961,6 @@
             mousePixelY <= bottom
           ) {
             let distance = obj.position.distanceTo(spaceship.position);
-
             hoveredObjects.push({ object: obj, distance: distance, data: objData });
           }
         }
@@ -976,7 +978,6 @@
 
           // Iterate over all dimensions (n dimensions) and add each coordinate to the output
           for (let dim = 0; dim < n; dim++) {
-            // Add the coordinate for the current dimension
             starInfoHTML += `D ${dim + 1}: ${parseInt(objPosition[dim], 10)}<br>`;
           }
 
@@ -1219,8 +1220,13 @@
       function updateStarVisibility(starData, distanceFromSlice) {
         if (distanceFromSlice < sliceThickness) {
           starData.mesh.visible = true;
-          const scale = 1 - (distanceFromSlice / sliceThickness);
-          starData.mesh.scale.set(scale, scale, scale);
+
+          // Calculate perspective scaling based on distance in unmapped dimensions
+          let scaleFactor = perspectiveFactor / (perspectiveFactor + distanceFromSlice);
+
+          // Apply the perspective scaling to the star's size
+          starData.mesh.scale.set(scaleFactor, scaleFactor, scaleFactor);
+
         } else {
           starData.mesh.visible = false;
         }
