@@ -285,26 +285,17 @@
     </script>
 
     <script>
-      const n = 5; // Number of dimensions
-      let targetObject = null;
-      let goalAchieved = false;
-
-      let gimbalScene, gimbalCamera, gimbalRenderer, gimbalSphere;
-      let gimbalAxisMarkers = {
-        x: { positive: null, negative: null },
-        y: { positive: null, negative: null },
-        z: { positive: null, negative: null }
-      };
-
-      let scene, camera, renderer;
-      let spaceship;
-      let asteroids = [];
-      let stars = [];
+      const numberOfDimensions = 5; 
 
       const totalNumberOfStars = 6000;
-      const totalNumbersOfAsteroids = 0;
+      const starSize = 500;
+      const starDistanceMin = 1000;
+      const starDistanceMax = 1000000;
 
-      let speed = 0;
+      const totalNumbersOfAsteroids = 5000;
+      const asteroidSize = 1;
+      const asteroidResetDistance = 5000;
+
       const rotationSpeed = 0.02;
       const maxSpeed = 10000;
 
@@ -315,39 +306,14 @@
       const warpAcceleration = maxSpeed / 3;
       const warpDeceleration = maxSpeed / 3;
 
-      let paused = false;
-      let isWarping = false;
-      let warpInProgress = false;
-      let warpOutProgress = false;
-      let isSuperAccelerating = false;
-      let isSuperDecelerating = false;
-
-      let keysPressed = {};
-
-      const clock = new THREE.Clock();
-
-      let mouse = new THREE.Vector2();
-      let mousePixelX = 0;
-      let mousePixelY = 0;
-
       const sliceThickness = 1000000; // Determines how far stars in unmapped dimensions remain visible from the 3D slice.
       const perspectiveFactor = 150000; // Controls the rate of size shrinkage for stars based on distance in unmapped dimensions.
+      const dimensionShiftDuration = 3 // Seconds
 
-      const textureLoader = new THREE.TextureLoader();
-      const texture = textureLoader.load(
-        'cat.png',
-        () => { console.log('cat.png loaded successfully'); },
-        undefined,
-        (err) => { console.error('Error loading cat.png:', err); }
-      );
+      const clock = new THREE.Clock();
       const textureDistance = 100000;
 
       const whiteMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
-      const texturedMaterial = new THREE.MeshBasicMaterial({ map: texture });
-
-      let spaceshipPosition = new Array(n).fill(0);
-
-      let axisToDimension = { x: 0, y: 1, z: 2 };
 
       const dimensionColors = [
         '#FF0000', // Dimension 1 - Red
@@ -361,6 +327,37 @@
         '#000080', // Dimension 9 - Navy Blue
         '#808000'  // Dimension 10 - Olive
       ];
+
+      let scene, camera, renderer;
+      let spaceship;
+      let asteroids = [];
+      let stars = [];
+      let gimbalScene, gimbalCamera, gimbalRenderer, gimbalSphere;
+      let gimbalAxisMarkers = {
+        x: { positive: null, negative: null },
+        y: { positive: null, negative: null },
+        z: { positive: null, negative: null }
+      };
+
+      let speed = 0;
+      let isWarping = false;
+      let warpInProgress = false;
+      let warpOutProgress = false;
+      let isSuperAccelerating = false;
+      let isSuperDecelerating = false;
+
+      let spaceshipPosition = new Array(numberOfDimensions).fill(0);
+      let axisToDimension = { x: 0, y: 1, z: 2 };
+
+      let keysPressed = {};
+      let paused = false;
+
+      let mouse = new THREE.Vector2();
+      let mousePixelX = 0;
+      let mousePixelY = 0;
+
+      let targetObject = null;
+      let goalAchieved = false;
 
       let isDimensionShifting = false;
       let dimensionShiftStartTime = 0;
@@ -378,7 +375,6 @@
 
       function init() {
         scene = new THREE.Scene();
-
         camera = new THREE.PerspectiveCamera(
           75,
           window.innerWidth / window.innerHeight,
@@ -386,44 +382,35 @@
           1000000
         );
         camera.position.set(0, 0, 0);
-
         renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
-
         let geometry = new THREE.ConeGeometry(0.5, 1, 32);
         let material = new THREE.MeshBasicMaterial({ color: 0xffff00 });
         spaceship = new THREE.Mesh(geometry, material);
         spaceship.visible = false;
         scene.add(spaceship);
-
         document.addEventListener('keydown', onKeyDown, false);
         document.addEventListener('keyup', onKeyUp, false);
         document.addEventListener('mousemove', onMouseMove, false);
-
         document.getElementById('save-button').addEventListener('click', function () {
           saveGameProgress();
         });
-
         document.getElementById('reset-button').addEventListener('click', function () {
           resetGame();
         });
-
         document.querySelectorAll('.axis').forEach(axisElement => {
           axisElement.addEventListener('click', onAxisClick);
         });
-
-        createAsteroids();
+        for (let i = 0; i < totalNumbersOfAsteroids; i++) {
+          createAsteroid();
+        };
         createStars();
-
         loadGameProgress();
-
         if (!targetObject) {
           pickRandomTarget();
         }
-
         updateAxisLabelsAndColors();
-
         initGimbal();
       }
 
@@ -434,23 +421,16 @@
         if (!paused) {
           if (isDimensionShifting) {
             let elapsed = clock.getElapsedTime() - dimensionShiftStartTime;
-            let t = Math.min(elapsed / 3, 1);
-
+            let t = Math.min(elapsed / dimensionShiftDuration, 1);
             spaceship.quaternion.slerpQuaternions(oldQuaternion, newQuaternion, t);
-
             updateSceneObjects(t);
-
             gimbalSphere.quaternion.copy(spaceship.quaternion.clone().invert());
-
             if (t >= 1) {
               isDimensionShifting = false;
               controlsEnabled = true;
-
               axisToDimension = { ...newAxisToDimension };
-
               updateAxisLabelsAndColors();
               updateGimbalAxisColors();
-
               stars.forEach((star) => {
                 delete star.initialPosition3D;
                 delete star.finalPosition3D;
@@ -509,51 +489,42 @@
               let direction = new THREE.Vector3(0, 0, -1);
               direction.applyQuaternion(spaceship.quaternion);
               direction.multiplyScalar(speed * deltaTime);
-
               spaceship.position.add(direction);
-
               spaceshipPosition[axisToDimension.x] += direction.x;
               spaceshipPosition[axisToDimension.y] += direction.y;
               spaceshipPosition[axisToDimension.z] += direction.z;
-
               camera.position.copy(spaceship.position);
               camera.quaternion.copy(spaceship.quaternion);
 
               asteroids.forEach(function (asteroid) {
                 let distance = asteroid.position.distanceTo(spaceship.position);
-                if (distance > 5000) {
+                if (distance > asteroidResetDistance) {
                   resetAsteroidPosition(asteroid);
                 }
               });
             }
 
             updateSceneObjects();
-
             gimbalSphere.quaternion.copy(spaceship.quaternion.clone().invert());
           }
 
           updateSpeedometer();
           updateObjectInfo();
           updateCoordinates();
-
           renderer.render(scene, camera);
-
           gimbalRenderer.render(gimbalScene, gimbalCamera);
         }
       }
 
       function initGimbal() {
         gimbalScene = new THREE.Scene();
-
         gimbalCamera = new THREE.PerspectiveCamera(28, 1, 0.1, 1000);
         gimbalCamera.position.set(0, 0, 5);
         gimbalCamera.lookAt(0, 0, 0);
-
         const gimbalCanvas = document.getElementById('gimbal-canvas');
         gimbalRenderer = new THREE.WebGLRenderer({ alpha: true, canvas: gimbalCanvas });
         gimbalRenderer.setSize(200, 200);
         gimbalRenderer.setClearColor(0x000000, 0);
-
         const geometry = new THREE.SphereGeometry(1, 16, 16);
         const material = new THREE.MeshBasicMaterial({ color: 0x888888, wireframe: true });
         gimbalSphere = new THREE.Mesh(geometry, material);
@@ -602,30 +573,87 @@
         arrowShape.lineTo(0, 0.2);
         arrowShape.lineTo(0.2, -0.2);
         arrowShape.lineTo(0.1, -0.2);
-
         const arrowExtrudeSettings = {
           steps: 1,
           depth: 0.02,
           bevelEnabled: false
         };
-
         const arrowGeometry = new THREE.ExtrudeGeometry(arrowShape, arrowExtrudeSettings);
         const arrowMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
         const arrowMesh = new THREE.Mesh(arrowGeometry, arrowMaterial);
-
         arrowMesh.rotation.x = Math.PI / 3;
         arrowMesh.position.set(0, 0, 0);
 
         gimbalScene.add(arrowMesh);
       }
 
+      function createAsteroid(position) {
+        size = asteroidSize
+        let geometry = new THREE.DodecahedronGeometry(size);
+        let material = new THREE.MeshBasicMaterial({
+          color: new THREE.Color(Math.random(), Math.random(), Math.random())
+        });
+        let asteroid = new THREE.Mesh(geometry, material);
+        if (position) {
+          let position3D = get3DPosition(position);
+          asteroid.position.copy(position3D);
+        } else {
+          resetAsteroidPosition(asteroid);
+        }
+        scene.add(asteroid);
+        asteroids.push(asteroid);
+        return asteroid;
+      }
+
+      function createStars() {
+        for (let i = 0; i < totalNumberOfStars; i++) {
+          createStar();
+        }
+      }
+
+      function createStar(position) {
+        size = starSize;
+        let geometry = new THREE.BoxGeometry(size, size, size);
+        let material = whiteMaterial;
+        let star = new THREE.Mesh(geometry, material);
+        star.userData = {
+          hasTexture: false
+        };
+        if (position) {
+          star.position.copy(get3DPosition(position));
+          star.positionND = position.slice();
+        } else {
+          let positionND = new Array(numberOfDimensions).fill(0);
+          let u = Math.random();
+          let radius = Math.pow(u * (Math.pow(starDistanceMax, 3) - Math.pow(starDistanceMin, 3)) + Math.pow(starDistanceMin, 3), 1 / 3);
+          let phi = Math.acos(2 * Math.random() - 1);
+          let theta = 2 * Math.PI * Math.random();
+          positionND[axisToDimension.x] = radius * Math.sin(phi) * Math.cos(theta);
+          positionND[axisToDimension.y] = radius * Math.sin(phi) * Math.sin(theta);
+          positionND[axisToDimension.z] = radius * Math.cos(phi);
+          for (let dim = 0; dim < numberOfDimensions; dim++) {
+            if (!Object.values(axisToDimension).includes(dim)) {
+              positionND[dim] = (Math.random() - 0.5) * starDistanceMax;
+            }
+          }
+          star.position.copy(get3DPosition(positionND));
+          star.positionND = positionND.slice();
+        }
+
+        scene.add(star);
+        stars.push({
+          mesh: star,
+          position: star.positionND,
+          userData: star.userData
+        });
+        return star;
+      }
 
       function pickRandomTarget() {
         targetObject = stars[Math.floor(Math.random() * stars.length)];
         setGoalNotification(targetObject.position);
         goalAchieved = false;
       }
-
 
       function saveGameProgress() {
         const position = spaceshipPosition;
@@ -640,14 +668,11 @@
           },
           objects: []
         };
-
         stars.forEach(obj => {
           coordinates.objects.push({
             position: obj.position.slice(),
-            size: obj.userData.size
           });
         });
-
         try {
           localStorage.setItem('spaceshipData', JSON.stringify(coordinates));
           showSaveMessage();
@@ -669,7 +694,7 @@
           }
           if (data.objects && Array.isArray(data.objects)) {
             data.objects.forEach(objData => {
-              createStar(objData.size, objData.position);
+              createStar(objData.position);
             });
           }
           if (data.goal && data.goal.position) {
@@ -685,7 +710,7 @@
             }
           }
         } else {
-          spaceshipPosition = new Array(n).fill(0);
+          spaceshipPosition = new Array(numberOfDimensions).fill(0);
           spaceship.quaternion.set(0, 0, 0, 1);
           camera.position.copy(spaceship.position);
         }
@@ -693,153 +718,121 @@
 
       function resetGame() {
         localStorage.removeItem('spaceshipData');
-
-        spaceshipPosition = new Array(n).fill(0);
-
+        spaceshipPosition = new Array(numberOfDimensions).fill(0);
         spaceship.rotation.set(0, 0, 0);
         spaceship.quaternion.set(0, 0, 0, 1);
-
         camera.position.copy(spaceship.position);
         camera.quaternion.copy(spaceship.quaternion);
-
         gimbalSphere.quaternion.copy(spaceship.quaternion.clone().invert());
-
         updateCoordinates();
-
         clearStars();
-
         createStars();
-
         asteroids.forEach(function (asteroid) {
           resetAsteroidPosition(asteroid);
         });
-
         speed = 0;
         updateSpeedometer();
-
         showWarpMessage(null);
         showPausedMessage(false);
-
         pickRandomTarget();
       }
 
-      function setGoalNotification(objPosition) {
-        const goalNotification = document.getElementById('goal-notification');
-        let goalText = 'Goal: Find the star<br><small>';
-        for (let dim = 0; dim < n; dim++) {
-          goalText += `Dim ${dim + 1}: ${Math.round(objPosition[dim])}`;
-          if (dim < n - 1) goalText += ', ';
-        }
-        goalText += '</small>';
-        goalNotification.innerHTML = goalText;
-      }
-
-      function showSaveMessage() {
-        const saveMessage = document.getElementById('save-message');
-        saveMessage.style.display = 'block';
-
-        setTimeout(() => {
-          saveMessage.style.display = 'none';
-        }, 2000);
-      }
-
-      function createAsteroids() {
-        for (let i = 0; i < totalNumbersOfAsteroids; i++) {
-          createAsteroid();
-        }
-      }
-
-      function createAsteroid(size, position) {
-        size = size || getNormalRandom(1.5, 0.5);
-        size = Math.max(0.5, Math.min(2.5, size));
-
-        let geometry = new THREE.DodecahedronGeometry(size);
-        let material = new THREE.MeshBasicMaterial({
-          color: new THREE.Color(Math.random(), Math.random(), Math.random())
-        });
-
-        let asteroid = new THREE.Mesh(geometry, material);
-
-        asteroid.userData.size = size;
-
-        if (position) {
-          let position3D = get3DPosition(position);
-          asteroid.position.copy(position3D);
-        } else {
-          resetAsteroidPosition(asteroid);
-        }
-
-        scene.add(asteroid);
-        asteroids.push(asteroid);
-
-        return asteroid;
-      }
-
-      function createStars() {
-        for (let i = 0; i < totalNumberOfStars; i++) {
-          createStar();
-        }
-      }
-
-      function createStar(size, position) {
-        size = 500;
-        let geometry = new THREE.BoxGeometry(size, size, size);
-        let material = whiteMaterial;
-        let star = new THREE.Mesh(geometry, material);
-        star.userData = {
-          size: size,
-          hasTexture: false
-        };
-
-        if (position) {
-          star.position.copy(get3DPosition(position));
-          star.positionND = position.slice();
-        } else {
-          let positionND = new Array(n).fill(0);
-          let radiusMin = 1000;
-          let radiusMax = 1000000;
-          let u = Math.random();
-          let radius = Math.pow(u * (Math.pow(radiusMax, 3) - Math.pow(radiusMin, 3)) + Math.pow(radiusMin, 3), 1 / 3);
-          let phi = Math.acos(2 * Math.random() - 1);
-          let theta = 2 * Math.PI * Math.random();
-
-          positionND[axisToDimension.x] = radius * Math.sin(phi) * Math.cos(theta);
-          positionND[axisToDimension.y] = radius * Math.sin(phi) * Math.sin(theta);
-          positionND[axisToDimension.z] = radius * Math.cos(phi);
-
-          for (let dim = 0; dim < n; dim++) {
-            if (!Object.values(axisToDimension).includes(dim)) {
-              positionND[dim] = (Math.random() - 0.5) * radiusMax;
+      function clearStars() {
+        function disposeObject(obj) {
+          if (obj.geometry) {
+            obj.geometry.dispose();
+          }
+          if (obj.material) {
+            if (Array.isArray(obj.material)) {
+              obj.material.forEach(material => material.dispose());
+            } else {
+              obj.material.dispose();
             }
           }
-
-          star.position.copy(get3DPosition(positionND));
-          star.positionND = positionND.slice();
         }
-
-        scene.add(star);
-        stars.push({
-          mesh: star,
-          position: star.positionND,
-          userData: star.userData
+        stars.forEach(objData => {
+          let obj = objData.mesh;
+          scene.remove(obj);
+          disposeObject(obj);
+          if (obj.children && obj.children.length > 0) {
+            obj.children.forEach(child => {
+              disposeObject(child);
+            });
+          }
         });
-
-        return star;
+        stars = [];
       }
 
       function resetAsteroidPosition(asteroid) {
         let position = new THREE.Vector3();
         position.copy(spaceship.position);
-
         let radius = 1000 + Math.random() * 2000;
         let phi = Math.acos(2 * Math.random() - 1);
         let theta = 2 * Math.PI * Math.random();
-
         position.x += radius * Math.sin(phi) * Math.cos(theta);
         position.y += radius * Math.sin(phi) * Math.sin(theta);
         position.z += radius * Math.cos(phi);
-
         asteroid.position.copy(position);
+      }
+
+      function projectToScreen(position) {
+        let vector = position.clone().project(camera);
+        if (vector.z > 1 || vector.z < -1) {
+          return null;
+        }
+        let x = (vector.x + 1) / 2 * window.innerWidth;
+        let y = (-vector.y + 1) / 2 * window.innerHeight;
+        return new THREE.Vector2(x, y);
+      }
+
+      function updateObjectInfo() {
+        const minHoverSize = 30;
+        const maxHoverSize = 60;
+        const objectInfo = document.getElementById('object-info');
+        objectInfo.innerHTML = '';
+        let hoveredObjects = [];
+
+        for (let objData of stars) {
+          let obj = objData.mesh;
+          if (!obj.visible) continue;
+          let objPosition = obj.position.clone();
+          let screenPos = projectToScreen(objPosition);
+          if (!screenPos) continue;
+          const cameraToObjDistance = obj.position.distanceTo(spaceship.position);
+          const fov = camera.fov * (Math.PI / 180);
+          const size = starSize;
+          const screenHeight = window.innerHeight;
+          let projectedSize =
+            (size / cameraToObjDistance) *
+            (screenHeight / (2 * Math.tan(fov / 2)));
+          let hoverRadius = Math.max(Math.min(projectedSize, maxHoverSize), minHoverSize / 2);
+          let left = screenPos.x - hoverRadius;
+          let right = screenPos.x + hoverRadius;
+          let top = screenPos.y - hoverRadius;
+          let bottom = screenPos.y + hoverRadius;
+          if (
+            mousePixelX >= left &&
+            mousePixelX <= right &&
+            mousePixelY >= top &&
+            mousePixelY <= bottom
+          ) {
+            let distance = obj.position.distanceTo(spaceship.position);
+            hoveredObjects.push({ object: obj, distance: distance, data: objData });
+          }
+        }
+
+        if (hoveredObjects.length > 0) {
+          hoveredObjects.sort((a, b) => a.distance - b.distance);
+          let closestObject = hoveredObjects[0].object;
+          let closestDistance = hoveredObjects[0].distance;
+          let data = hoveredObjects[0].data;
+          const objPosition = data.position;
+          let starInfoHTML = `Star<br>Distance: ${parseInt(closestDistance, 10)}<br>`;
+          for (let dim = 0; dim < numberOfDimensions; dim++) {
+            starInfoHTML += `D ${dim + 1}: ${parseInt(objPosition[dim], 10)}<br>`;
+          }
+          objectInfo.innerHTML = starInfoHTML;
+        }
       }
 
       function onKeyDown(event) {
@@ -886,7 +879,6 @@
 
       function onKeyUp(event) {
         keysPressed[event.key.toLowerCase()] = false;
-
         if (event.code === 'ArrowUp') {
           keysPressed['up'] = false;
         } else if (event.code === 'ArrowDown') {
@@ -901,212 +893,49 @@
       function onMouseMove(event) {
         mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
         mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
-
         mousePixelX = event.clientX;
         mousePixelY = event.clientY;
       }
 
-      function projectToScreen(position) {
-        let vector = position.clone().project(camera);
-
-        if (vector.z > 1 || vector.z < -1) {
-          return null;
-        }
-
-        let x = (vector.x + 1) / 2 * window.innerWidth;
-        let y = (-vector.y + 1) / 2 * window.innerHeight;
-
-        return new THREE.Vector2(x, y);
-      }
-      function updateObjectInfo() {
-        const minHoverSize = 30;
-        const maxHoverSize = 60; 
-        const objectInfo = document.getElementById('object-info');
-        objectInfo.innerHTML = '';
-
-        let hoveredObjects = [];
-
-        for (let objData of stars) {
-          let obj = objData.mesh;
-          if (!obj.visible) continue;
-          let objPosition = obj.position.clone();
-          let screenPos = projectToScreen(objPosition);
-          if (!screenPos) continue;
-          const cameraToObjDistance = obj.position.distanceTo(spaceship.position);
-          const fov = camera.fov * (Math.PI / 180);
-          const size = obj.userData.size;
-
-          const screenHeight = window.innerHeight;
-
-          let projectedSize =
-            (size / cameraToObjDistance) *
-            (screenHeight / (2 * Math.tan(fov / 2)));
-
-          let hoverRadius = Math.max(Math.min(projectedSize, maxHoverSize), minHoverSize / 2);
-
-          let left = screenPos.x - hoverRadius;
-          let right = screenPos.x + hoverRadius;
-          let top = screenPos.y - hoverRadius;
-          let bottom = screenPos.y + hoverRadius;
-
-          if (
-            mousePixelX >= left &&
-            mousePixelX <= right &&
-            mousePixelY >= top &&
-            mousePixelY <= bottom
-          ) {
-            let distance = obj.position.distanceTo(spaceship.position);
-            hoveredObjects.push({ object: obj, distance: distance, data: objData });
+      function getDistanceFromSlice(starPositionND, t = null) {
+        let distanceSquared = 0;
+        let currentMapping = isDimensionShifting && t !== null ? newAxisToDimension : axisToDimension;
+        for (let dim = 0; dim < numberOfDimensions; dim++) {
+          if (!Object.values(currentMapping).includes(dim)) {
+            let delta = starPositionND[dim] - spaceshipPosition[dim];
+            distanceSquared += delta * delta;
           }
         }
-
-        if (hoveredObjects.length > 0) {
-          hoveredObjects.sort((a, b) => a.distance - b.distance);
-          let closestObject = hoveredObjects[0].object;
-          let closestDistance = hoveredObjects[0].distance;
-          let data = hoveredObjects[0].data;
-          const objPosition = data.position;
-          let starInfoHTML = `Star<br>Distance: ${parseInt(closestDistance, 10)}<br>`;
-          for (let dim = 0; dim < n; dim++) {
-            starInfoHTML += `D ${dim + 1}: ${parseInt(objPosition[dim], 10)}<br>`;
-          }
-          objectInfo.innerHTML = starInfoHTML;
-        }
+        return Math.sqrt(distanceSquared);
       }
 
-      function showWarpMessage(message) {
-        const warpMessage = document.getElementById('warp-message');
-        if (message) {
-          warpMessage.textContent = message;
-          warpMessage.style.display = 'block';
+      function updateStarVisibility(starData, distanceFromSlice) {
+        if (distanceFromSlice < sliceThickness) {
+          starData.mesh.visible = true;
+
+          // Calculate perspective scaling based on distance in unmapped dimensions
+          let scaleFactor = perspectiveFactor / (perspectiveFactor + distanceFromSlice);
+
+          // Apply the perspective scaling to the star's size
+          starData.mesh.scale.set(scaleFactor, scaleFactor, scaleFactor);
+
         } else {
-          warpMessage.style.display = 'none';
+          starData.mesh.visible = false;
         }
       }
-
-      function updateSpeedometer() {
-        const speedBar = document.getElementById('speed-bar');
-        const speedText = document.getElementById('speed-text');
-
-        let speedPercent = (speed / maxSpeed) * 100;
-        speedBar.style.width = speedPercent + '%';
-
-        speedText.textContent = 'Speed: ' + speed.toFixed(1) + ' km/s';
-      }
-
-      function showPausedMessage(show) {
-        const pausedMessage = document.getElementById('paused-message');
-        pausedMessage.style.display = show ? 'block' : 'none';
-      }
-
-      function updateCoordinates() {
-        const x = spaceshipPosition[axisToDimension.x].toFixed(2);
-        const y = spaceshipPosition[axisToDimension.y].toFixed(2);
-        const z = spaceshipPosition[axisToDimension.z].toFixed(2);
-        document.getElementById('coordinate-x').textContent = `X(${axisToDimension.x + 1}): ${x}`;
-        document.getElementById('coordinate-y').textContent = `Y(${axisToDimension.y + 1}): ${y}`;
-        document.getElementById('coordinate-z').textContent = `Z(${axisToDimension.z + 1}): ${z}`;
-      }
-
-      function clearStars() {
-        function disposeObject(obj) {
-          if (obj.geometry) {
-            obj.geometry.dispose();
-          }
-          if (obj.material) {
-            if (Array.isArray(obj.material)) {
-              obj.material.forEach(material => material.dispose());
-            } else {
-              obj.material.dispose();
-            }
-          }
-        }
-
-        stars.forEach(objData => {
-          let obj = objData.mesh;
-          scene.remove(obj);
-          disposeObject(obj);
-          if (obj.children && obj.children.length > 0) {
-            obj.children.forEach(child => {
-              disposeObject(child);
-            });
-          }
-        });
-        stars = [];
-      }
-
-      function getNormalRandom(mean, stdDev) {
-        let u = 0, v = 0;
-        while (u === 0) u = Math.random();
-        while (v === 0) v = Math.random();
-        let num = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
-        num = num * stdDev + mean;
-        return num;
-      }
-
-      window.addEventListener('resize', function () {
-        let width = window.innerWidth;
-        let height = window.innerHeight;
-        renderer.setSize(width, height);
-        camera.aspect = width / height;
-        camera.updateProjectionMatrix();
-      });
-
-      function onAxisClick(event) {
-        const axis = event.target.getAttribute('data-axis');
-        showDimensionSelectionMenu(axis);
-      }
-
-      function showDimensionSelectionMenu(axis) {
-        const menu = document.getElementById('dimension-selection-menu');
-        const dimensionList = document.getElementById('dimension-list');
-        const selectedAxisSpan = document.getElementById('selected-axis');
-        selectedAxisSpan.textContent = axis.toUpperCase();
-
-        dimensionList.innerHTML = '';
-
-        const mappedDimensions = Object.values(axisToDimension);
-
-        for (let i = 0; i < n; i++) {
-          if (!mappedDimensions.includes(i)) {
-            const li = document.createElement('li');
-            li.textContent = `Dimension ${i + 1}`;
-            li.setAttribute('data-dimension', i);
-            li.style.color = dimensionColors[i];
-            li.addEventListener('click', () => {
-              initiateDimensionShift(axis, i);
-              menu.style.display = 'none';
-            });
-            dimensionList.appendChild(li);
-          }
-        }
-
-        menu.style.display = 'block';
-      }
-
-      document.getElementById('dimension-selection-menu').addEventListener('click', (event) => {
-        if (event.target.id === 'dimension-selection-menu') {
-          event.target.style.display = 'none';
-        }
-      });
 
       function initiateDimensionShift(axis, targetDimension) {
         if (isDimensionShifting) return;
-
         isDimensionShifting = true;
         dimensionShiftStartTime = clock.getElapsedTime();
         shiftAxis = axis;
         oldDimension = axisToDimension[axis];
         newDimension = targetDimension;
-
         controlsEnabled = false;
-
         oldQuaternion = spaceship.quaternion.clone();
-
         oldAxisToDimension = { ...axisToDimension };
         newAxisToDimension = { ...axisToDimension };
         newAxisToDimension[axis] = newDimension;
-
         let rotationAxis = new THREE.Vector3();
         if (axis === 'x') {
           rotationAxis.set(0, 0, 1);
@@ -1115,7 +944,6 @@
         } else if (axis === 'z') {
           rotationAxis.set(0, 1, 0);
         }
-
         let angle = Math.PI / 2;
         let quaternionRotation = new THREE.Quaternion();
         quaternionRotation.setFromAxisAngle(rotationAxis, angle);
@@ -1149,7 +977,6 @@
             let distanceFromSlice = getDistanceFromSlice(positionND);
             updateStarVisibility(starData, distanceFromSlice);
           }
-
           starData.mesh.position.copy(position3D);
         });
 
@@ -1163,6 +990,57 @@
           positionND[axisToDimension.y],
           positionND[axisToDimension.z]
         );
+      }
+
+      function updateCoordinates() {
+        const x = spaceshipPosition[axisToDimension.x].toFixed(2);
+        const y = spaceshipPosition[axisToDimension.y].toFixed(2);
+        const z = spaceshipPosition[axisToDimension.z].toFixed(2);
+        document.getElementById('coordinate-x').textContent = `X(${axisToDimension.x + 1}): ${x}`;
+        document.getElementById('coordinate-y').textContent = `Y(${axisToDimension.y + 1}): ${y}`;
+        document.getElementById('coordinate-z').textContent = `Z(${axisToDimension.z + 1}): ${z}`;
+      }
+
+      function showWarpMessage(message) {
+        const warpMessage = document.getElementById('warp-message');
+        if (message) {
+          warpMessage.textContent = message;
+          warpMessage.style.display = 'block';
+        } else {
+          warpMessage.style.display = 'none';
+        }
+      }
+
+      function updateSpeedometer() {
+        const speedBar = document.getElementById('speed-bar');
+        const speedText = document.getElementById('speed-text');
+        let speedPercent = (speed / maxSpeed) * 100;
+        speedBar.style.width = speedPercent + '%';
+        speedText.textContent = 'Speed: ' + speed.toFixed(1) + ' km/s';
+      }
+
+      function showPausedMessage(show) {
+        const pausedMessage = document.getElementById('paused-message');
+        pausedMessage.style.display = show ? 'block' : 'none';
+      }
+
+      function showSaveMessage() {
+        const saveMessage = document.getElementById('save-message');
+        saveMessage.style.display = 'block';
+        setTimeout(() => {
+          saveMessage.style.display = 'none';
+        }, 2000);
+      }
+
+      function setGoalNotification(objPosition) {
+        const goalNotification = document.getElementById('goal-notification');
+        let goalText = 'Goal: Find the star<br><small>';
+        for (let dim = 0; dim < numberOfDimensions; dim++) {
+          goalText += `Dim ${dim + 1}: ${Math.round(objPosition[dim])}`;
+          if (dim < numberOfDimensions - 1) goalText += ', ';
+        }
+        goalText += '</small>';
+        goalNotification.innerHTML = goalText;
       }
 
       function updateAxisLabelsAndColors() {
@@ -1193,32 +1071,47 @@
         gimbalAxisMarkers.z.negative.material.color.copy(zColor);
       }
 
-      function getDistanceFromSlice(starPositionND, t = null) {
-        let distanceSquared = 0;
-        let currentMapping = isDimensionShifting && t !== null ? newAxisToDimension : axisToDimension;
-        for (let dim = 0; dim < n; dim++) {
-          if (!Object.values(currentMapping).includes(dim)) {
-            let delta = starPositionND[dim] - spaceshipPosition[dim];
-            distanceSquared += delta * delta;
+      function onAxisClick(event) {
+        const axis = event.target.getAttribute('data-axis');
+        showDimensionSelectionMenu(axis);
+      }
+
+      document.getElementById('dimension-selection-menu').addEventListener('click', (event) => {
+        if (event.target.id === 'dimension-selection-menu') {
+          event.target.style.display = 'none';
+        }
+      });
+
+      function showDimensionSelectionMenu(axis) {
+        const menu = document.getElementById('dimension-selection-menu');
+        const dimensionList = document.getElementById('dimension-list');
+        const selectedAxisSpan = document.getElementById('selected-axis');
+        selectedAxisSpan.textContent = axis.toUpperCase();
+        dimensionList.innerHTML = '';
+        const mappedDimensions = Object.values(axisToDimension);
+        for (let i = 0; i < numberOfDimensions; i++) {
+          if (!mappedDimensions.includes(i)) {
+            const li = document.createElement('li');
+            li.textContent = `Dimension ${i + 1}`;
+            li.setAttribute('data-dimension', i);
+            li.style.color = dimensionColors[i];
+            li.addEventListener('click', () => {
+              initiateDimensionShift(axis, i);
+              menu.style.display = 'none';
+            });
+            dimensionList.appendChild(li);
           }
         }
-        return Math.sqrt(distanceSquared);
+        menu.style.display = 'block';
       }
 
-      function updateStarVisibility(starData, distanceFromSlice) {
-        if (distanceFromSlice < sliceThickness) {
-          starData.mesh.visible = true;
-
-          // Calculate perspective scaling based on distance in unmapped dimensions
-          let scaleFactor = perspectiveFactor / (perspectiveFactor + distanceFromSlice);
-
-          // Apply the perspective scaling to the star's size
-          starData.mesh.scale.set(scaleFactor, scaleFactor, scaleFactor);
-
-        } else {
-          starData.mesh.visible = false;
-        }
-      }
+      window.addEventListener('resize', function () {
+        let width = window.innerWidth;
+        let height = window.innerHeight;
+        renderer.setSize(width, height);
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+      });
 
     </script>
   </body>
