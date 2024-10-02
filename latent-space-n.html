@@ -298,20 +298,18 @@
 
       const rotationSpeed = 0.02;
       const maxSpeed = 10000;
-
       const normalAcceleration = 1;
       const superAcceleration = 500;
       const superDeceleration = 500;
-
       const warpAcceleration = maxSpeed / 3;
       const warpDeceleration = maxSpeed / 3;
 
-      const sliceThickness = 1000000; // Determines how far stars in unmapped dimensions remain visible from the 3D slice.
+      const sliceThickness = 100000; // Determines how far stars in unmapped dimensions remain visible from the 3D slice.
       const perspectiveFactor = 150000; // Controls the rate of size shrinkage for stars based on distance in unmapped dimensions.
+      const textureDistance = 100000; // Controls at what distance textures get rendered
       const dimensionShiftDuration = 3 // Seconds
 
       const clock = new THREE.Clock();
-      const textureDistance = 100000;
 
       const whiteMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
 
@@ -420,6 +418,9 @@
 
         if (!paused) {
           if (isDimensionShifting) {
+            asteroids.forEach((asteroid) => {
+                asteroid.visible = false;
+              })
             let elapsed = clock.getElapsedTime() - dimensionShiftStartTime;
             let t = Math.min(elapsed / dimensionShiftDuration, 1);
             spaceship.quaternion.slerpQuaternions(oldQuaternion, newQuaternion, t);
@@ -497,6 +498,7 @@
               camera.quaternion.copy(spaceship.quaternion);
 
               asteroids.forEach(function (asteroid) {
+                asteroid.visible = true;
                 let distance = asteroid.position.distanceTo(spaceship.position);
                 if (distance > asteroidResetDistance) {
                   resetAsteroidPosition(asteroid);
