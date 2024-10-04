@@ -1,6 +1,3 @@
-// Base URL of your backend API
-const API_BASE_URL = 'https://7895-2a0d-6fc2-5ee1-3300-8dd0-9454-cd4e-dbf2.ngrok-free.app';
-
 // Function to register a new game and get a UUID
 async function registerNewGameAPI() {
   try {

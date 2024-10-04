@@ -1,44 +1,6 @@
-const numberOfDimensions = 5;
-
-const totalNumberOfStars = 6000;
-const starSize = 500;
-const starDistanceMin = 1000;
-const starDistanceMax = 800000;
-
-const totalNumbersOfAsteroids = 5000;
-const asteroidSize = 1;
-const asteroidResetDistance = 5000;
-
-const rotationSpeed = 0.02;
-const maxSpeed = 10000;
-const normalAcceleration = 1;
-const superAcceleration = 500;
-const superDeceleration = 500;
-const warpAcceleration = maxSpeed / 3;
-const warpDeceleration = maxSpeed / 3;
-
-const sliceThickness = 150000; // Determines how far stars in unmapped dimensions remain visible from the 3D slice.
-const perspectiveFactor = 15000000; // Controls the rate of size shrinkage for stars based on distance in unmapped dimensions.
-const dimensionShiftDuration = 3 // Seconds
-
-const textureDistance = 50000; // Controls at what distance textures get rendered
-
 const clock = new THREE.Clock();
 
 const whiteMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
-
-const dimensionColors = [
-  '#FF0000', // Dimension 1 - Red
-  '#00FF00', // Dimension 2 - Green
-  '#0000FF', // Dimension 3 - Blue
-  '#FFD700', // Dimension 4 - Dark Yellow
-  '#FF00FF', // Dimension 5 - Magenta
-  '#00FFFF', // Dimension 6 - Cyan
-  '#800000', // Dimension 7 - Maroon
-  '#008000', // Dimension 8 - Dark Green
-  '#000080', // Dimension 9 - Navy Blue
-  '#808000'  // Dimension 10 - Olive
-];
 
 let scene, camera, renderer;
 let spaceship;
@@ -132,7 +94,6 @@ async function init() {
     createAsteroid();
   };
   createStars();
-  loadGameProgress();
   if (!targetObject) {
     pickRandomTarget();
   }
@@ -806,10 +767,7 @@ function updateSceneObjects(t = null) {
       position3D = get3DPosition(positionND);
       let distanceFromSlice = getDistanceFromSlice(positionND);
       updateStarVisibility(starData, distanceFromSlice);
-      let deltaX = starData.position[axisToDimension.x] - spaceshipPosition[axisToDimension.x];
-      let deltaY = starData.position[axisToDimension.y] - spaceshipPosition[axisToDimension.y];
-      let deltaZ = starData.position[axisToDimension.z] - spaceshipPosition[axisToDimension.z];
-      let distanceInMappedDimensions = Math.sqrt(deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ);
+      let distanceInMappedDimensions = starData.mesh.position.distanceTo(spaceship.position);
       if (distanceInMappedDimensions < textureDistance) {
         if (!starData.userData.hasTexture && !starData.userData.textureRequested) {
           starData.userData.textureRequested = true;
@@ -839,27 +797,24 @@ async function fetchStarTexture(starData) {
     const textureBlob = await fetchStarTextureAPI(uuid, starData.position);
     const textureURL = URL.createObjectURL(textureBlob);
     const textureLoader = new THREE.TextureLoader();
-    textureLoader.load(textureURL, function (texture) {
-      // Create the texture material
-      const textureMaterial = new THREE.MeshBasicMaterial({ map: texture });
-      starData.userData.textureMaterial = textureMaterial;
-      starData.userData.hasTexture = true;
-      // If the star is still close enough, apply the texture material
-      let deltaX = starData.position[axisToDimension.x] - spaceshipPosition[axisToDimension.x];
-      let deltaY = starData.position[axisToDimension.y] - spaceshipPosition[axisToDimension.y];
-      let deltaZ = starData.position[axisToDimension.z] - spaceshipPosition[axisToDimension.z];
-      let distanceInMappedDimensions = Math.sqrt(deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ);
-      if (distanceInMappedDimensions < textureDistance) {
+    textureLoader.load(
+      textureURL,
+      function (texture) {
+        const textureMaterial = new THREE.MeshBasicMaterial({ map: texture });
+        starData.userData.textureMaterial = textureMaterial;
+        starData.userData.hasTexture = true;
         starData.mesh.material = textureMaterial;
+      },
+      undefined,
+      function (err) {
+        console.error(`Error loading texture for star at position ${starData.position}:`, err);
       }
-    }, undefined, function (err) {
-      // On error
-      console.error(`Error loading texture for star at position ${starData.position}:`, err);
-    });
+    );
   } catch (error) {
     console.error(`Failed to fetch texture for star at position ${starData.position}:`, error);
   }
 }
+
 
 function get3DPosition(positionND) {
   return new THREE.Vector3(
