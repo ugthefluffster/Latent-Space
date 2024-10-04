@@ -121,7 +121,8 @@
         margin-bottom: 5px;
       }
 
-      #save-message {
+      #save-message,
+      #reset-message {
         position: absolute;
         top: 50%;
         left: 50%;
@@ -273,6 +274,7 @@
     <div id="save-button">Save Game</div>
     <div id="reset-button">Reset Game</div>
     <div id="save-message">Game Saved!</div>
+    <div id="reset-message">Game Reset!</div>
     <div id="goal-notification"></div>
     <canvas id="gimbal-canvas"></canvas>
     <div id="dimension-selection-menu">
@@ -283,6 +285,7 @@
     </div>
     <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js">
     </script>
+    <script src="gameAPI.js"></script>
 
     <script>
       const numberOfDimensions = 5;
@@ -306,8 +309,9 @@
 
       const sliceThickness = 150000; // Determines how far stars in unmapped dimensions remain visible from the 3D slice.
       const perspectiveFactor = 15000000; // Controls the rate of size shrinkage for stars based on distance in unmapped dimensions.
-      const textureDistance = 100000; // Controls at what distance textures get rendered
       const dimensionShiftDuration = 3 // Seconds
+
+      const textureDistance = 50000; // Controls at what distance textures get rendered
 
       const clock = new THREE.Clock();
 
@@ -371,7 +375,7 @@
       init();
       animate();
 
-      function init() {
+      async function init() {
         scene = new THREE.Scene();
         camera = new THREE.PerspectiveCamera(
           75,
@@ -389,6 +393,19 @@
         spaceship.visible = false;
         scene.add(spaceship);
         initGimbal();
+        const existingUUID = localStorage.getItem('gameUUID');
+        if (existingUUID) {
+          console.log('UUID found:', existingUUID);
+          await loadGameProgress();
+        } else {
+          try {
+            const uuid = await registerNewGameAPI();
+            console.log('Game registered with UUID:', uuid);
+            localStorage.setItem('gameUUID', uuid);
+          } catch (error) {
+            console.log('Register failed, defaulting to local initialization');
+          }
+        }
         document.addEventListener('keydown', onKeyDown, false);
         document.addEventListener('keyup', onKeyUp, false);
         document.addEventListener('mousemove', onMouseMove, false);
@@ -636,7 +653,10 @@
         let material = whiteMaterial;
         let star = new THREE.Mesh(geometry, material);
         star.userData = {
-          hasTexture: false
+          hasTexture: false,
+          textureRequested: false,
+          originalMaterial: material,
+          textureMaterial: null
         };
         if (position) {
           star.position.copy(get3DPosition(position));
@@ -682,36 +702,80 @@
         goalAchieved = false;
       }
 
-      function saveGameProgress() {
-        const position = spaceshipPosition;
-        const quaternion = spaceship.quaternion;
-        const coordinates = {
+      async function saveGameProgress() {
+        const gameData = {
           spaceship: {
-            position: position.slice(),
-            orientation: quaternion.toArray()
+            position: spaceshipPosition.slice(),
+            orientation: spaceship.quaternion.toArray()
           },
           goal: {
             position: targetObject ? targetObject.position.slice() : null
           },
           goalAchieved: goalAchieved,
           axisToDimension: { ...axisToDimension },
-          objects: []
-        };
-        stars.forEach(obj => {
-          coordinates.objects.push({
+          objects: stars.map(obj => ({
             position: obj.position.slice(),
-          });
-        });
+          })),
+        };
         try {
-          localStorage.setItem('spaceshipData', JSON.stringify(coordinates));
+          const uuid = localStorage.getItem('gameUUID');
+          const saveConfirmation = await saveGameAPI(uuid, gameData);
+          console.log('Game saved to backend:', saveConfirmation);
           showSaveMessage();
-        } catch (e) {
-          console.error('Failed to save game progress:', e);
-          alert('Failed to save game progress. The data size might be too large.');
+        } catch (error) {
+          console.error('Save to backend failed, falling back to local save.');
+          try {
+            localStorage.setItem('spaceshipData', JSON.stringify(gameData));
+            showSaveMessage();
+          } catch (e) {
+            console.error('Failed to save game locally:', e);
+            alert('Failed to save game locally.');
+          }
         }
       }
 
-      function loadGameProgress() {
+      async function loadGameProgress() {
+        const uuid = localStorage.getItem('gameUUID');
+        if (uuid) {
+          try {
+            const data = await loadGameAPI(uuid);
+            console.log('Game loaded from backend:', data);
+
+            if (data.spaceship) {
+              const { position, orientation } = data.spaceship;
+              spaceshipPosition = position.slice();
+              spaceship.quaternion.fromArray(orientation);
+              camera.quaternion.copy(spaceship.quaternion);
+            }
+            if (data.axisToDimension) {
+              axisToDimension = { ...data.axisToDimension };
+              updateAxisLabelsAndColors();
+              updateGimbalAxisColors();
+            }
+            if (data.objects && Array.isArray(data.objects)) {
+              data.objects.forEach(objData => {
+                createStar(objData.position);
+              });
+            }
+            if (data.goal && data.goal.position) {
+              const position = data.goal.position;
+              targetObject = stars.find(obj => {
+                return obj.position.every((val, index) => val === position[index]);
+              });
+
+              if (targetObject) {
+                goalAchieved = data.goalAchieved || false;
+                updateGoalNotification();
+              } else {
+                console.warn("Target object not found after loading.");
+              }
+            }
+            return;
+          } catch (error) {
+            console.error('Load from backend failed, falling back to local load.');
+          }
+        }
+
         const savedData = localStorage.getItem('spaceshipData');
         if (savedData) {
           const data = JSON.parse(savedData);
@@ -721,7 +785,7 @@
             spaceship.quaternion.fromArray(orientation);
             camera.quaternion.copy(spaceship.quaternion);
           }
-          if (data.axisToDimension) { 
+          if (data.axisToDimension) {
             axisToDimension = { ...data.axisToDimension };
             updateAxisLabelsAndColors();
             updateGimbalAxisColors();
@@ -750,8 +814,7 @@
         }
       }
 
-
-      function resetGame() {
+      async function resetGame() {
         localStorage.removeItem('spaceshipData');
         spaceshipPosition = new Array(numberOfDimensions).fill(0);
         spaceship.rotation.set(0, 0, 0);
@@ -774,6 +837,24 @@
         showWarpMessage(null);
         showPausedMessage(false);
         pickRandomTarget();
+        const uuid = localStorage.getItem('gameUUID');
+        showResetMessage();
+        if (uuid) {
+          localStorage.removeItem('gameUUID');
+          try {
+            const resetConfirmation = await resetGameAPI(uuid);
+            console.log('Game reset on backend:', resetConfirmation);
+          } catch (error) {
+            console.error('Reset on backend failed, falling back to local reset.');
+          }
+        }
+        try {
+          const uuid = await registerNewGameAPI();
+          console.log('Game registered with UUID:', uuid);
+          localStorage.setItem('gameUUID', uuid);
+        } catch (error) {
+          console.log('Register failed, defaulting to local initialization');
+        }
       }
 
       function clearStars() {
@@ -1015,12 +1096,59 @@
             position3D = get3DPosition(positionND);
             let distanceFromSlice = getDistanceFromSlice(positionND);
             updateStarVisibility(starData, distanceFromSlice);
+            let deltaX = starData.position[axisToDimension.x] - spaceshipPosition[axisToDimension.x];
+            let deltaY = starData.position[axisToDimension.y] - spaceshipPosition[axisToDimension.y];
+            let deltaZ = starData.position[axisToDimension.z] - spaceshipPosition[axisToDimension.z];
+            let distanceInMappedDimensions = Math.sqrt(deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ);
+            if (distanceInMappedDimensions < textureDistance) {
+              if (!starData.userData.hasTexture && !starData.userData.textureRequested) {
+                starData.userData.textureRequested = true;
+                fetchStarTexture(starData).catch((error) => {
+                  console.error(`Failed to load texture for star at position ${starData.position}:`, error);
+                });
+              }
+              if (starData.userData.hasTexture && starData.mesh.material !== starData.userData.textureMaterial) {
+                starData.mesh.material = starData.userData.textureMaterial;
+              }
+            } else {
+              if (starData.userData.hasTexture && starData.mesh.material !== starData.userData.originalMaterial) {
+                starData.mesh.material = starData.userData.originalMaterial;
+              }
+            }
           }
           starData.mesh.position.copy(position3D);
         });
 
         const spaceshipPosition3D = get3DPosition(spaceshipPosition);
         spaceship.position.copy(spaceshipPosition3D);
+      }
+
+      async function fetchStarTexture(starData) {
+        try {
+          const uuid = localStorage.getItem('gameUUID');
+          const textureBlob = await fetchStarTextureAPI(uuid, starData.position);
+          const textureURL = URL.createObjectURL(textureBlob);
+          const textureLoader = new THREE.TextureLoader();
+          textureLoader.load(textureURL, function (texture) {
+            // Create the texture material
+            const textureMaterial = new THREE.MeshBasicMaterial({ map: texture });
+            starData.userData.textureMaterial = textureMaterial;
+            starData.userData.hasTexture = true;
+            // If the star is still close enough, apply the texture material
+            let deltaX = starData.position[axisToDimension.x] - spaceshipPosition[axisToDimension.x];
+            let deltaY = starData.position[axisToDimension.y] - spaceshipPosition[axisToDimension.y];
+            let deltaZ = starData.position[axisToDimension.z] - spaceshipPosition[axisToDimension.z];
+            let distanceInMappedDimensions = Math.sqrt(deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ);
+            if (distanceInMappedDimensions < textureDistance) {
+              starData.mesh.material = textureMaterial;
+            }
+          }, undefined, function (err) {
+            // On error
+            console.error(`Error loading texture for star at position ${starData.position}:`, err);
+          });
+        } catch (error) {
+          console.error(`Failed to fetch texture for star at position ${starData.position}:`, error);
+        }
       }
 
       function get3DPosition(positionND) {
@@ -1065,6 +1193,14 @@
 
       function showSaveMessage() {
         const saveMessage = document.getElementById('save-message');
+        saveMessage.style.display = 'block';
+        setTimeout(() => {
+          saveMessage.style.display = 'none';
+        }, 2000);
+      }
+
+      function showResetMessage() {
+        const saveMessage = document.getElementById('reset-message');
         saveMessage.style.display = 'block';
         setTimeout(() => {
           saveMessage.style.display = 'none';

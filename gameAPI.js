@@ -1,8 +1,8 @@
 // Base URL of your backend API
-const API_BASE_URL = 'https://your-backend-server.com/api';
+const API_BASE_URL = 'https://7895-2a0d-6fc2-5ee1-3300-8dd0-9454-cd4e-dbf2.ngrok-free.app';
 
 // Function to register a new game and get a UUID
-async function registerNewGame() {
+async function registerNewGameAPI() {
   try {
     const response = await fetch(`${API_BASE_URL}/register`, {
       method: 'POST',
@@ -15,9 +15,6 @@ async function registerNewGame() {
     const data = await response.json();
     const uuid = data.uuid;
 
-    // Save UUID locally (e.g., in localStorage)
-    localStorage.setItem('gameUUID', uuid);
-
     return uuid;
   } catch (error) {
     console.error(error);
@@ -26,7 +23,7 @@ async function registerNewGame() {
 }
 
 // Function to save game data
-async function saveGame(uuid, gameData) {
+async function saveGameAPI(uuid, gameData) {
   try {
     const response = await fetch(`${API_BASE_URL}/save`, {
       method: 'POST',
@@ -49,7 +46,7 @@ async function saveGame(uuid, gameData) {
 }
 
 // Function to load game data
-async function loadGame(uuid) {
+async function loadGameAPI(uuid) {
   try {
     const response = await fetch(`${API_BASE_URL}/load`, {
       method: 'POST',
@@ -73,7 +70,7 @@ async function loadGame(uuid) {
 }
 
 // Function to reset the game
-async function resetGame(uuid) {
+async function resetGameAPI(uuid) {
   try {
     const response = await fetch(`${API_BASE_URL}/reset`, {
       method: 'POST',
@@ -89,8 +86,6 @@ async function resetGame(uuid) {
 
     const data = await response.json();
 
-    // Delete UUID locally
-    localStorage.removeItem('gameUUID');
 
     return data.confirmation; // Assuming the backend sends a confirmation message
   } catch (error) {
@@ -99,33 +94,26 @@ async function resetGame(uuid) {
   }
 }
 
-// Function to get an image based on coordinates
-async function getImage(coordinates) {
+// Function to fetch star texture
+async function fetchStarTextureAPI(uuid, starPosition) {
   try {
-    const response = await fetch(`${API_BASE_URL}/image`, {
+    const response = await fetch(`${API_BASE_URL}/getStarTexture`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ coordinates }),
+      body: JSON.stringify({ uuid: uuid, position: starPosition }),
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to get image: ${response.statusText}`);
+      throw new Error(`Failed to fetch star texture: ${response.statusText}`);
     }
 
     const blob = await response.blob();
-    const imageUrl = URL.createObjectURL(blob);
-
-    return imageUrl;
+    return blob; // Return the image as a Blob
   } catch (error) {
-    console.error(error);
+    console.error(`Error fetching star texture at position ${starPosition}:`, error);
     throw error;
   }
 }
-
-// Example usage (to be integrated into your main code later):
-
-
-
 
