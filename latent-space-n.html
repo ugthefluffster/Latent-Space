@@ -285,7 +285,7 @@
     </script>
 
     <script>
-      const numberOfDimensions = 5; 
+      const numberOfDimensions = 5;
 
       const totalNumberOfStars = 6000;
       const starSize = 500;
@@ -388,6 +388,7 @@
         spaceship = new THREE.Mesh(geometry, material);
         spaceship.visible = false;
         scene.add(spaceship);
+        initGimbal();
         document.addEventListener('keydown', onKeyDown, false);
         document.addEventListener('keyup', onKeyUp, false);
         document.addEventListener('mousemove', onMouseMove, false);
@@ -409,7 +410,6 @@
           pickRandomTarget();
         }
         updateAxisLabelsAndColors();
-        initGimbal();
       }
 
       function animate() {
@@ -419,8 +419,8 @@
         if (!paused) {
           if (isDimensionShifting) {
             asteroids.forEach((asteroid) => {
-                asteroid.visible = false;
-              })
+              asteroid.visible = false;
+            })
             let elapsed = clock.getElapsedTime() - dimensionShiftStartTime;
             let t = Math.min(elapsed / dimensionShiftDuration, 1);
             spaceship.quaternion.slerpQuaternions(oldQuaternion, newQuaternion, t);
@@ -508,6 +508,23 @@
 
             updateSceneObjects();
             gimbalSphere.quaternion.copy(spaceship.quaternion.clone().invert());
+          }
+
+          if (targetObject && !goalAchieved) {
+            const objPosition = targetObject.mesh.position.clone();
+            const screenPos = projectToScreen(objPosition);
+            if (screenPos) {
+              const cameraToObjDistance = objPosition.distanceTo(camera.position);
+              const fov = camera.fov * (Math.PI / 180); // Convert FOV to radians
+              const screenHeight = window.innerHeight;
+              let projectedSize =
+                (starSize / cameraToObjDistance) *
+                (screenHeight / (2 * Math.tan(fov / 2)));
+              if (projectedSize >= screenHeight * 0.2) {
+                goalAchieved = true;
+                updateGoalNotification()
+              }
+            }
           }
 
           updateSpeedometer();
@@ -652,8 +669,16 @@
       }
 
       function pickRandomTarget() {
+
+        // // for debuggging, create a close star and pick it as target
+        // const debugPositionND = new Array(numberOfDimensions).fill(10000);
+        // const debugStarMesh = createStar(debugPositionND);
+        // const debugStarData = stars.find(obj => obj.mesh === debugStarMesh);
+        // targetObject = debugStarData;
+
         targetObject = stars[Math.floor(Math.random() * stars.length)];
-        setGoalNotification(targetObject.position);
+
+        updateGoalNotification();
         goalAchieved = false;
       }
 
@@ -668,6 +693,8 @@
           goal: {
             position: targetObject ? targetObject.position.slice() : null
           },
+          goalAchieved: goalAchieved,
+          axisToDimension: { ...axisToDimension },
           objects: []
         };
         stars.forEach(obj => {
@@ -694,6 +721,11 @@
             spaceship.quaternion.fromArray(orientation);
             camera.quaternion.copy(spaceship.quaternion);
           }
+          if (data.axisToDimension) { 
+            axisToDimension = { ...data.axisToDimension };
+            updateAxisLabelsAndColors();
+            updateGimbalAxisColors();
+          }
           if (data.objects && Array.isArray(data.objects)) {
             data.objects.forEach(objData => {
               createStar(objData.position);
@@ -705,8 +737,8 @@
               return obj.position.every((val, index) => val === position[index]);
             });
             if (targetObject) {
-              setGoalNotification(targetObject.position);
-              goalAchieved = false;
+              goalAchieved = data.goalAchieved || false;
+              updateGoalNotification(); // Ensure this function is called
             } else {
               console.warn("Target object not found after loading.");
             }
@@ -718,6 +750,7 @@
         }
       }
 
+
       function resetGame() {
         localStorage.removeItem('spaceshipData');
         spaceshipPosition = new Array(numberOfDimensions).fill(0);
@@ -727,12 +760,16 @@
         camera.quaternion.copy(spaceship.quaternion);
         gimbalSphere.quaternion.copy(spaceship.quaternion.clone().invert());
         updateCoordinates();
+        axisToDimension = { x: 0, y: 1, z: 2 };
+        updateAxisLabelsAndColors();
+        updateGimbalAxisColors();
         clearStars();
         createStars();
         asteroids.forEach(function (asteroid) {
           resetAsteroidPosition(asteroid);
         });
         speed = 0;
+        goalAchieved = false;
         updateSpeedometer();
         showWarpMessage(null);
         showPausedMessage(false);
@@ -1034,16 +1071,23 @@
         }, 2000);
       }
 
-      function setGoalNotification(objPosition) {
+      function updateGoalNotification() {
         const goalNotification = document.getElementById('goal-notification');
-        let goalText = 'Goal: Find the star<br><small>';
-        for (let dim = 0; dim < numberOfDimensions; dim++) {
-          goalText += `Dim ${dim + 1}: ${Math.round(objPosition[dim])}`;
-          if (dim < numberOfDimensions - 1) goalText += ', ';
+        if (goalAchieved) {
+          goalNotification.innerHTML = `Congratulations! You have found the star.<br>You can reset the game to start a new hunt.`;
+        } else if (targetObject) {
+          let goalText = 'Goal: Find the star<br><small>';
+          for (let dim = 0; dim < numberOfDimensions; dim++) {
+            goalText += `Dim ${dim + 1}: ${Math.round(targetObject.position[dim])}`;
+            if (dim < numberOfDimensions - 1) goalText += ', ';
+          }
+          goalText += '</small>';
+          goalNotification.innerHTML = goalText;
+        } else {
+          goalNotification.innerHTML = 'Goal: Find the star';
         }
-        goalText += '</small>';
-        goalNotification.innerHTML = goalText;
       }
+
 
       function updateAxisLabelsAndColors() {
         const xAxisElement = document.getElementById('coordinate-x');
