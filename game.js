@@ -782,6 +782,11 @@ function updateSceneObjects(t = null) {
         if (starData.userData.hasTexture && starData.mesh.material !== starData.userData.originalMaterial) {
           starData.mesh.material = starData.userData.originalMaterial;
         }
+        starData.userData.textureRequested = false;
+        if (starData.userData.abortController) {
+          starData.userData.abortController.abort();
+          delete starData.userData.abortController;
+        }
       }
     }
     starData.mesh.position.copy(position3D);
@@ -794,7 +799,9 @@ function updateSceneObjects(t = null) {
 async function fetchStarTexture(starData) {
   try {
     const uuid = localStorage.getItem('gameUUID');
-    const textureBlob = await fetchStarTextureAPI(uuid, starData.position);
+    const abortController = new AbortController();
+    starData.userData.abortController = abortController;
+    const textureBlob = await fetchStarTextureAPI(uuid, starData.position, abortController.signal);
     const textureURL = URL.createObjectURL(textureBlob);
     const textureLoader = new THREE.TextureLoader();
     textureLoader.load(
@@ -814,6 +821,7 @@ async function fetchStarTexture(starData) {
     console.error(`Failed to fetch texture for star at position ${starData.position}:`, error);
   }
 }
+
 
 
 function get3DPosition(positionND) {

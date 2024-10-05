@@ -91,26 +91,51 @@ async function resetGameAPI(uuid) {
   }
 }
 
-// Function to fetch star texture
-async function fetchStarTextureAPI(uuid, starPosition) {
-  try {
-    const response = await fetch(`${API_BASE_URL}/getStarTexture`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ uuid: uuid, position: starPosition }),
-    });
+async function fetchStarTextureAPI(uuid, starPosition, signal, retries = 30, delay = 3000) {
+  let attempts = 0;
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch star texture: ${response.statusText}`);
+  while (retries === -1 || attempts < retries) {
+
+    // Check if the fetch has been aborted
+    if (signal.aborted) {
+      console.log(`Fetch for star at position ${starPosition} was aborted.`);
+      return; // Exit the function if aborted
     }
 
-    const blob = await response.blob();
-    return blob; // Return the image as a Blob
-  } catch (error) {
-    console.error(`Error fetching star texture at position ${starPosition}:`, error);
-    throw error;
+    try {
+      const response = await fetch(`${API_BASE_URL}/getStarTexture`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ uuid: uuid, position: starPosition }),
+        signal: signal, // Pass the abort signal to fetch
+      });
+
+      if (response.status === 503) {
+        console.log(`Server is busy, retrying after ${delay}ms... (Attempt ${attempts + 1})`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        attempts++;
+        continue;
+      }
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch star texture: ${response.statusText}`);
+      }
+
+      const blob = await response.blob();
+      return blob; // Return the image as a Blob
+    } catch (error) {
+      if (signal.aborted) {
+        console.log(`Fetch for star at position ${starPosition} was aborted.`);
+        return; // Exit the function if aborted
+      }
+      console.error(`Error fetching star texture at position ${starPosition}:`, error);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      attempts++;
+    }
   }
+
+  throw new Error(`Failed to fetch star texture after ${attempts} attempts`);
 }
 

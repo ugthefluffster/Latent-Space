@@ -1,11 +1,11 @@
-const API_BASE_URL = 'https://0bfe-2a0d-6fc2-5ee1-3300-8dd0-9454-cd4e-dbf2.ngrok-free.app';
+const API_BASE_URL = 'https://e3be-35-240-229-36.ngrok-free.app';
 
 const numberOfDimensions = 5;
 
 const totalNumberOfStars = 6000;
 const starSize = 500;
 const starDistanceMin = 1000;
-const starDistanceMax = 800000;
+const starDistanceMax = 1000000;
 
 const totalNumbersOfAsteroids = 5000;
 const asteroidSize = 1;
