@@ -1,2 +1,3 @@
+set local storage uuid only if saving. save uuid to variable otherwise
 separate speedometer for every axis
 auto alignment to axis

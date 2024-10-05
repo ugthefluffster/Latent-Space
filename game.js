@@ -127,54 +127,7 @@ function animate() {
       }
     } else {
       if (controlsEnabled) {
-        if (keysPressed['w']) {
-          spaceship.rotateX(rotationSpeed);
-        }
-        if (keysPressed['s']) {
-          spaceship.rotateX(-rotationSpeed);
-        }
-        if (keysPressed['a']) {
-          spaceship.rotateY(rotationSpeed);
-        }
-        if (keysPressed['d']) {
-          spaceship.rotateY(-rotationSpeed);
-        }
-        if (keysPressed['q']) {
-          spaceship.rotateZ(-rotationSpeed);
-        }
-        if (keysPressed['e']) {
-          spaceship.rotateZ(rotationSpeed);
-        }
-
-        if (warpInProgress) {
-          speed = Math.min(maxSpeed, speed + warpAcceleration * deltaTime);
-          if (speed >= maxSpeed) {
-            speed = maxSpeed;
-            warpInProgress = false;
-            showWarpMessage('Warp Speed');
-          }
-        } else if (warpOutProgress) {
-          speed = Math.max(0, speed - warpDeceleration * deltaTime);
-          if (speed <= 0) {
-            speed = 0;
-            warpOutProgress = false;
-            showWarpMessage(null);
-          }
-        } else {
-          if (isSuperAccelerating) {
-            speed = Math.min(maxSpeed, speed + superAcceleration * deltaTime);
-          }
-          if (isSuperDecelerating) {
-            speed = Math.max(0, speed - superDeceleration * deltaTime);
-          }
-          if (keysPressed['up']) {
-            speed = Math.min(maxSpeed, speed + normalAcceleration * deltaTime);
-          }
-          if (keysPressed['down']) {
-            speed = Math.max(-100, speed - normalAcceleration * deltaTime);
-          }
-        }
-
+        controlShip(deltaTime);
         let direction = new THREE.Vector3(0, 0, -1);
         direction.applyQuaternion(spaceship.quaternion);
         direction.multiplyScalar(speed * deltaTime);
@@ -184,7 +137,6 @@ function animate() {
         spaceshipPosition[axisToDimension.z] += direction.z;
         camera.position.copy(spaceship.position);
         camera.quaternion.copy(spaceship.quaternion);
-
         asteroids.forEach(function (asteroid) {
           asteroid.visible = true;
           let distance = asteroid.position.distanceTo(spaceship.position);
@@ -566,128 +518,6 @@ function resetAsteroidPosition(asteroid) {
   asteroid.position.copy(position);
 }
 
-function projectToScreen(position) {
-  let vector = position.clone().project(camera);
-  if (vector.z > 1 || vector.z < -1) {
-    return null;
-  }
-  let x = (vector.x + 1) / 2 * window.innerWidth;
-  let y = (-vector.y + 1) / 2 * window.innerHeight;
-  return new THREE.Vector2(x, y);
-}
-
-function updateObjectInfo() {
-  const minHoverSize = 30;
-  const maxHoverSize = 60;
-  const objectInfo = document.getElementById('object-info');
-  objectInfo.innerHTML = '';
-  let hoveredObjects = [];
-
-  for (let objData of stars) {
-    let obj = objData.mesh;
-    if (!obj.visible) continue;
-    let objPosition = obj.position.clone();
-    let screenPos = projectToScreen(objPosition);
-    if (!screenPos) continue;
-    const cameraToObjDistance = obj.position.distanceTo(spaceship.position);
-    const fov = camera.fov * (Math.PI / 180);
-    const size = starSize;
-    const screenHeight = window.innerHeight;
-    let projectedSize =
-      (size / cameraToObjDistance) *
-      (screenHeight / (2 * Math.tan(fov / 2)));
-    let hoverRadius = Math.max(Math.min(projectedSize, maxHoverSize), minHoverSize / 2);
-    let left = screenPos.x - hoverRadius;
-    let right = screenPos.x + hoverRadius;
-    let top = screenPos.y - hoverRadius;
-    let bottom = screenPos.y + hoverRadius;
-    if (
-      mousePixelX >= left &&
-      mousePixelX <= right &&
-      mousePixelY >= top &&
-      mousePixelY <= bottom
-    ) {
-      let distance = obj.position.distanceTo(spaceship.position);
-      hoveredObjects.push({ object: obj, distance: distance, data: objData });
-    }
-  }
-
-  if (hoveredObjects.length > 0) {
-    hoveredObjects.sort((a, b) => a.distance - b.distance);
-    let closestObject = hoveredObjects[0].object;
-    let closestDistance = hoveredObjects[0].distance;
-    let data = hoveredObjects[0].data;
-    const objPosition = data.position;
-    let starInfoHTML = `Star<br>Distance: ${parseInt(closestDistance, 10)}<br>`;
-    for (let dim = 0; dim < numberOfDimensions; dim++) {
-      starInfoHTML += `D ${dim + 1}: ${parseInt(objPosition[dim], 10)}<br>`;
-    }
-    objectInfo.innerHTML = starInfoHTML;
-  }
-}
-
-function onKeyDown(event) {
-  keysPressed[event.key.toLowerCase()] = true;
-
-  if (event.code === 'ArrowUp') {
-    keysPressed['up'] = true;
-  } else if (event.code === 'ArrowDown') {
-    keysPressed['down'] = true;
-  } else if (event.code === 'KeyP') {
-    paused = !paused;
-    showPausedMessage(paused);
-    clock.getDelta();
-  } else if (event.code === 'Enter' && event.shiftKey) {
-    if (!warpInProgress) {
-      isWarping = true;
-      warpInProgress = true;
-      warpOutProgress = false;
-      showWarpMessage('Warp Engaged');
-    }
-  } else if (event.code === 'Space' && event.shiftKey) {
-    if (!warpOutProgress) {
-      warpOutProgress = true;
-      warpInProgress = false;
-      isWarping = false;
-      showWarpMessage('Warp Disengaged');
-    }
-  } else if (event.code === 'Enter' && !event.shiftKey) {
-    isSuperAccelerating = true;
-  } else if (event.code === 'Space' && !event.shiftKey) {
-    isSuperDecelerating = true;
-  }
-
-  if (event.key.toLowerCase() === 'c') {
-    const overlay = document.getElementById("overlay");
-    const display = window.getComputedStyle(overlay).display;
-    if (display === "none") {
-      overlay.style.display = "block";
-    } else {
-      overlay.style.display = "none";
-    }
-  }
-}
-
-function onKeyUp(event) {
-  keysPressed[event.key.toLowerCase()] = false;
-  if (event.code === 'ArrowUp') {
-    keysPressed['up'] = false;
-  } else if (event.code === 'ArrowDown') {
-    keysPressed['down'] = false;
-  } else if (event.code === 'Enter' && !event.shiftKey) {
-    isSuperAccelerating = false;
-  } else if (event.code === 'Space' && !event.shiftKey) {
-    isSuperDecelerating = false;
-  }
-}
-
-function onMouseMove(event) {
-  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-  mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
-  mousePixelX = event.clientX;
-  mousePixelY = event.clientY;
-}
-
 function getDistanceFromSlice(starPositionND, t = null) {
   let distanceSquared = 0;
   let currentMapping = isDimensionShifting && t !== null ? newAxisToDimension : axisToDimension;
@@ -768,7 +598,8 @@ function updateSceneObjects(t = null) {
       let distanceFromSlice = getDistanceFromSlice(positionND);
       updateStarVisibility(starData, distanceFromSlice);
       let distanceInMappedDimensions = starData.mesh.position.distanceTo(spaceship.position);
-      if (distanceInMappedDimensions < textureDistance) {
+      const uuid = localStorage.getItem('gameUUID'); // needs fixing!
+      if (distanceInMappedDimensions < textureDistance && uuid) {
         if (!starData.userData.hasTexture && !starData.userData.textureRequested) {
           starData.userData.textureRequested = true;
           fetchStarTexture(starData).catch((error) => {
@@ -822,8 +653,6 @@ async function fetchStarTexture(starData) {
   }
 }
 
-
-
 function get3DPosition(positionND) {
   return new THREE.Vector3(
     positionND[axisToDimension.x],
@@ -831,139 +660,3 @@ function get3DPosition(positionND) {
     positionND[axisToDimension.z]
   );
 }
-
-function updateCoordinates() {
-  const x = spaceshipPosition[axisToDimension.x].toFixed(2);
-  const y = spaceshipPosition[axisToDimension.y].toFixed(2);
-  const z = spaceshipPosition[axisToDimension.z].toFixed(2);
-  document.getElementById('coordinate-x').textContent = `X(${axisToDimension.x + 1}): ${x}`;
-  document.getElementById('coordinate-y').textContent = `Y(${axisToDimension.y + 1}): ${y}`;
-  document.getElementById('coordinate-z').textContent = `Z(${axisToDimension.z + 1}): ${z}`;
-}
-
-function showWarpMessage(message) {
-  const warpMessage = document.getElementById('warp-message');
-  if (message) {
-    warpMessage.textContent = message;
-    warpMessage.style.display = 'block';
-  } else {
-    warpMessage.style.display = 'none';
-  }
-}
-
-function updateSpeedometer() {
-  const speedBar = document.getElementById('speed-bar');
-  const speedText = document.getElementById('speed-text');
-  let speedPercent = (speed / maxSpeed) * 100;
-  speedBar.style.width = speedPercent + '%';
-  speedText.textContent = 'Speed: ' + speed.toFixed(1) + ' km/s';
-}
-
-function showPausedMessage(show) {
-  const pausedMessage = document.getElementById('paused-message');
-  pausedMessage.style.display = show ? 'block' : 'none';
-}
-
-function showSaveMessage() {
-  const saveMessage = document.getElementById('save-message');
-  saveMessage.style.display = 'block';
-  setTimeout(() => {
-    saveMessage.style.display = 'none';
-  }, 2000);
-}
-
-function showResetMessage() {
-  const saveMessage = document.getElementById('reset-message');
-  saveMessage.style.display = 'block';
-  setTimeout(() => {
-    saveMessage.style.display = 'none';
-  }, 2000);
-}
-
-function updateGoalNotification() {
-  const goalNotification = document.getElementById('goal-notification');
-  if (goalAchieved) {
-    goalNotification.innerHTML = `Congratulations! You have found the star.<br>You can reset the game to start a new hunt.`;
-  } else if (targetObject) {
-    let goalText = 'Goal: Find the star<br><small>';
-    for (let dim = 0; dim < numberOfDimensions; dim++) {
-      goalText += `Dim ${dim + 1}: ${Math.round(targetObject.position[dim])}`;
-      if (dim < numberOfDimensions - 1) goalText += ', ';
-    }
-    goalText += '</small>';
-    goalNotification.innerHTML = goalText;
-  } else {
-    goalNotification.innerHTML = 'Goal: Find the star';
-  }
-}
-
-
-function updateAxisLabelsAndColors() {
-  const xAxisElement = document.getElementById('coordinate-x');
-  xAxisElement.textContent = `X(${axisToDimension.x + 1}): ${spaceshipPosition[axisToDimension.x].toFixed(2)}`;
-  xAxisElement.style.color = dimensionColors[axisToDimension.x];
-
-  const yAxisElement = document.getElementById('coordinate-y');
-  yAxisElement.textContent = `Y(${axisToDimension.y + 1}): ${spaceshipPosition[axisToDimension.y].toFixed(2)}`;
-  yAxisElement.style.color = dimensionColors[axisToDimension.y];
-
-  const zAxisElement = document.getElementById('coordinate-z');
-  zAxisElement.textContent = `Z(${axisToDimension.z + 1}): ${spaceshipPosition[axisToDimension.z].toFixed(2)}`;
-  zAxisElement.style.color = dimensionColors[axisToDimension.z];
-}
-
-function updateGimbalAxisColors() {
-  const xColor = new THREE.Color(dimensionColors[axisToDimension.x]);
-  gimbalAxisMarkers.x.positive.material.color.copy(xColor);
-  gimbalAxisMarkers.x.negative.material.color.copy(xColor);
-
-  const yColor = new THREE.Color(dimensionColors[axisToDimension.y]);
-  gimbalAxisMarkers.y.positive.material.color.copy(yColor);
-  gimbalAxisMarkers.y.negative.material.color.copy(yColor);
-
-  const zColor = new THREE.Color(dimensionColors[axisToDimension.z]);
-  gimbalAxisMarkers.z.positive.material.color.copy(zColor);
-  gimbalAxisMarkers.z.negative.material.color.copy(zColor);
-}
-
-function onAxisClick(event) {
-  const axis = event.target.getAttribute('data-axis');
-  showDimensionSelectionMenu(axis);
-}
-
-document.getElementById('dimension-selection-menu').addEventListener('click', (event) => {
-  if (event.target.id === 'dimension-selection-menu') {
-    event.target.style.display = 'none';
-  }
-});
-
-function showDimensionSelectionMenu(axis) {
-  const menu = document.getElementById('dimension-selection-menu');
-  const dimensionList = document.getElementById('dimension-list');
-  const selectedAxisSpan = document.getElementById('selected-axis');
-  selectedAxisSpan.textContent = axis.toUpperCase();
-  dimensionList.innerHTML = '';
-  const mappedDimensions = Object.values(axisToDimension);
-  for (let i = 0; i < numberOfDimensions; i++) {
-    if (!mappedDimensions.includes(i)) {
-      const li = document.createElement('li');
-      li.textContent = `Dimension ${i + 1}`;
-      li.setAttribute('data-dimension', i);
-      li.style.color = dimensionColors[i];
-      li.addEventListener('click', () => {
-        initiateDimensionShift(axis, i);
-        menu.style.display = 'none';
-      });
-      dimensionList.appendChild(li);
-    }
-  }
-  menu.style.display = 'block';
-}
-
-window.addEventListener('resize', function () {
-  let width = window.innerWidth;
-  let height = window.innerHeight;
-  renderer.setSize(width, height);
-  camera.aspect = width / height;
-  camera.updateProjectionMatrix();
-});
