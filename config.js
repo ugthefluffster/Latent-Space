@@ -1,4 +1,4 @@
-const API_BASE_URL = 'https://e3be-35-240-229-36.ngrok-free.app';
+const API_BASE_URL = 'https://caiman-gentle-sunbird.ngrok-free.app';
 
 const numberOfDimensions = 5;
 
