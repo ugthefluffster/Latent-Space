@@ -1,5 +1,6 @@
 import os
 import re
+from datetime import datetime
 
 def find_local_js_files(html_content):
     """Find all locally imported JS files (excluding https) in the HTML content."""
@@ -31,7 +32,7 @@ def combine_html_and_js():
     # Locate the HTML file
     html_file = None
     for file in os.listdir(current_dir):
-        if file.endswith(".html"):
+        if file.endswith("latent-space.html"):
             html_file = file
             break  # Assuming there's only one HTML file
 
@@ -39,8 +40,10 @@ def combine_html_and_js():
         print("No HTML file found.")
         return
 
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+
     # Create the output filename by adding '-assembled' to the original HTML file's name
-    output_file = f"{os.path.splitext(html_file)[0]}-assembled.html"
+    output_file = f"{os.path.splitext(html_file)[0]}-assembled-{timestamp}.html"
 
     # Read the HTML file content
     with open(html_file, 'r', encoding='utf-8') as file:
