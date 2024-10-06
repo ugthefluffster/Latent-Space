@@ -31,6 +31,7 @@ let mousePixelX = 0;
 let mousePixelY = 0;
 
 let targetObject = null;
+let targetImageURL = null;
 let goalAchieved = false;
 
 let isDimensionShifting = false;
@@ -321,8 +322,31 @@ function pickRandomTarget() {
 
   targetObject = stars[Math.floor(Math.random() * stars.length)];
 
-  updateGoalNotification();
   goalAchieved = false;
+
+  fetchTargetImage(targetObject.position)
+    .then(() => {
+      updateGoalNotification();
+    })
+    .catch(error => {
+      console.error('Failed to fetch target image:', error);
+      updateGoalNotification();
+    });
+}
+
+async function fetchTargetImage(position) {
+  const uuid = localStorage.getItem('gameUUID');
+  if (!uuid) {
+    console.error('No game UUID found.');
+    throw new Error('No game UUID found.');
+  }
+  try {
+    const imageBlob = await fetchStarTextureAPI(uuid, position);
+    targetImageURL = URL.createObjectURL(imageBlob);
+  } catch (error) {
+    console.error('Error fetching target image:', error);
+    throw error;
+  }
 }
 
 async function saveGameProgress() {
@@ -388,7 +412,14 @@ async function loadGameProgress() {
 
         if (targetObject) {
           goalAchieved = data.goalAchieved || false;
-          updateGoalNotification();
+          fetchTargetImage(targetObject.position)
+            .then(() => {
+              updateGoalNotification();
+            })
+            .catch(error => {
+              console.error('Failed to fetch target image:', error);
+              updateGoalNotification();
+            });
         } else {
           console.warn("Target object not found after loading.");
         }
@@ -425,7 +456,7 @@ async function loadGameProgress() {
       });
       if (targetObject) {
         goalAchieved = data.goalAchieved || false;
-        updateGoalNotification(); // Ensure this function is called
+        updateGoalNotification();
       } else {
         console.warn("Target object not found after loading.");
       }
@@ -439,6 +470,8 @@ async function loadGameProgress() {
 
 async function resetGame() {
   localStorage.removeItem('spaceshipData');
+  targetImageURL = null;
+  targetObject = null;
   spaceshipPosition = new Array(numberOfDimensions).fill(0);
   spaceship.rotation.set(0, 0, 0);
   spaceship.quaternion.set(0, 0, 0, 1);
@@ -478,6 +511,7 @@ async function resetGame() {
   } catch (error) {
     console.log('Register failed, defaulting to local initialization');
   }
+  updateGoalNotification();
 }
 
 function clearStars() {

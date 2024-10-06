@@ -99,20 +99,42 @@ function showResetMessage() {
 
 function updateGoalNotification() {
   const goalNotification = document.getElementById('goal-notification');
+
   if (goalAchieved) {
-    goalNotification.innerHTML = `Congratulations! You have found the star.<br>You can reset the game to start a new hunt.`;
-  } else if (targetObject) {
-    let goalText = 'Goal: Find the star<br><small>';
+    console.log('1')
+    let coordinatesText = `<div class="goal-coordinates"><small>`;
     for (let dim = 0; dim < numberOfDimensions; dim++) {
-      goalText += `Dim ${dim + 1}: ${Math.round(targetObject.position[dim])}`;
-      if (dim < numberOfDimensions - 1) goalText += ', ';
+      coordinatesText += `Dim ${dim + 1}: ${Math.round(targetObject.position[dim])}`;
+      if (dim < numberOfDimensions - 1) coordinatesText += ', ';
     }
-    goalText += '</small>';
-    goalNotification.innerHTML = goalText;
+    coordinatesText += `</small></div>`;
+
+    goalNotification.innerHTML = `
+      <div class="goal-title">Congratulations! You found the star!</div>
+      ${targetImageURL ? `<img src="${targetImageURL}" alt="Target Image" class="goal-image">` : ''}
+      <br>You can reset the game to start a new hunt.
+    `;
+  } else if (targetObject) {
+    console.log('2')
+    let coordinatesText = `<div class="goal-coordinates"><small>`;
+    for (let dim = 0; dim < numberOfDimensions; dim++) {
+      coordinatesText += `Dim ${dim + 1}: ${Math.round(targetObject.position[dim])}`;
+      if (dim < numberOfDimensions - 1) coordinatesText += ', ';
+    }
+    coordinatesText += `</small></div>`;
+
+    goalNotification.innerHTML = `
+      <div class="goal-title">Find the Star</div>
+      ${targetImageURL ? `<img src="${targetImageURL}" alt="Target Image" class="goal-image">` : ''}
+      ${coordinatesText}
+    `;
   } else {
-    goalNotification.innerHTML = 'Goal: Find the star';
+    console.log('3')
+    goalNotification.innerHTML = 'Loading target...';
   }
 }
+
+
 
 function updateAxisLabelsAndColors() {
   const xAxisElement = document.getElementById('coordinate-x');

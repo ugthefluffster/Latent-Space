@@ -91,26 +91,24 @@ async function resetGameAPI(uuid) {
   }
 }
 
-async function fetchStarTextureAPI(uuid, starPosition, signal, retries = 30, delay = 3000) {
+async function fetchStarTextureAPI(uuid, starPosition, signal = null, retries = 30, delay = 3000) {
   let attempts = 0;
 
   while (retries === -1 || attempts < retries) {
-
-    // Check if the fetch has been aborted
-    if (signal.aborted) {
-      console.log(`Fetch for star at position ${starPosition} was aborted.`);
-      return; // Exit the function if aborted
-    }
-
     try {
-      const response = await fetch(`${API_BASE_URL}/getStarTexture`, {
+      const fetchOptions = {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ uuid: uuid, position: starPosition }),
-        signal: signal, // Pass the abort signal to fetch
-      });
+        body: JSON.stringify({ uuid: uuid, position: starPosition })
+      };
+
+      if (signal) {
+        fetchOptions.signal = signal; // Add signal if provided
+      }
+
+      const response = await fetch(`${API_BASE_URL}/getStarTexture`, fetchOptions);
 
       if (response.status === 503) {
         console.log(`Server is busy, retrying after ${delay}ms... (Attempt ${attempts + 1})`);
@@ -126,7 +124,8 @@ async function fetchStarTextureAPI(uuid, starPosition, signal, retries = 30, del
       const blob = await response.blob();
       return blob; // Return the image as a Blob
     } catch (error) {
-      if (signal.aborted) {
+      // Handle the case where the fetch is aborted
+      if (signal && signal.aborted) {
         console.log(`Fetch for star at position ${starPosition} was aborted.`);
         return; // Exit the function if aborted
       }
@@ -138,4 +137,5 @@ async function fetchStarTextureAPI(uuid, starPosition, signal, retries = 30, del
 
   throw new Error(`Failed to fetch star texture after ${attempts} attempts`);
 }
+
 

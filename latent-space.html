@@ -164,9 +164,8 @@
 
       #goal-notification {
         position: absolute;
-        top: 10px;
-        left: 50%;
-        transform: translateX(-50%);
+        bottom: 370px;
+        right: 10px;
         color: yellow;
         font-family: Arial, sans-serif;
         font-size: 20px;
@@ -175,7 +174,28 @@
         background-color: rgba(0, 0, 0, 0.7);
         padding: 10px 20px;
         border-radius: 5px;
+        max-width: 200px;
+        max-height: 400px;
       }
+
+      .goal-title {
+        font-size: 24px;
+        margin-bottom: 10px;
+      }
+
+      .goal-image {
+        max-width: 120px;
+        max-height: 120px;
+        display: block;
+        margin: 10px auto;
+      }
+
+      .goal-coordinates {
+        font-size: 16px;
+        margin-top: 10px;
+        text-align: center;
+      }
+
 
       #gimbal-canvas {
         position: absolute;
@@ -275,7 +295,7 @@
     <div id="reset-button">Reset Game</div>
     <div id="save-message">Game Saved!</div>
     <div id="reset-message">Game Reset!</div>
-    <div id="goal-notification"></div>
+    <div id="goal-notification">Loading target...</div>
     <canvas id="gimbal-canvas"></canvas>
     <div id="dimension-selection-menu">
       <div id="dimension-menu-content">
