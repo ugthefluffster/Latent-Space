@@ -6,4 +6,6 @@ reset game - send uuid, receive confirm on game data delete, delete uuid
 get image - send coordinates, get back image for coordinates
 
 (later)
-send number of dimensions, send descriptors and directions for each dimension, receive server initializing and then server ready
+send number of dimensions
+send descriptors and directions for each dimension 
+receive server initializing and then server ready

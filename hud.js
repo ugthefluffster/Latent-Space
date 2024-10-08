@@ -81,12 +81,18 @@ function showPausedMessage(show) {
   pausedMessage.style.display = show ? 'block' : 'none';
 }
 
-function showSaveMessage() {
+function showSaveMessage(status) {
   const saveMessage = document.getElementById('save-message');
   saveMessage.style.display = 'block';
-  setTimeout(() => {
-    saveMessage.style.display = 'none';
-  }, 2000);
+  if (status == 'saving') {
+    saveMessage.innerHTML = 'Saving Game...'
+  }
+  if (status == 'saved') {
+    saveMessage.innerHTML = 'Game Saved!'
+    setTimeout(() => {
+      saveMessage.style.display = 'none';
+    }, 2000);
+  }
 }
 
 function showResetMessage() {
@@ -95,6 +101,18 @@ function showResetMessage() {
   setTimeout(() => {
     saveMessage.style.display = 'none';
   }, 2000);
+}
+
+function showLoadingMessage(status) {
+  const saveMessage = document.getElementById('loading-message');
+  if (status == 'loading') {
+    saveMessage.style.display = 'block';
+  }
+  if (status == 'loaded') {
+    setTimeout(() => {
+      saveMessage.style.display = 'none';
+    }, 2000);
+  }
 }
 
 function updateGoalNotification() {

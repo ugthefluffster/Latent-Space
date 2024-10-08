@@ -49,6 +49,7 @@ init();
 animate();
 
 async function init() {
+  showLoadingMessage('loading')
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(
     75,
@@ -94,11 +95,14 @@ async function init() {
   for (let i = 0; i < totalNumbersOfAsteroids; i++) {
     createAsteroid();
   };
-  createStars();
+  if (stars.length == 0) {
+    createStars();
+  }
   if (!targetObject) {
     pickRandomTarget();
   }
   updateAxisLabelsAndColors();
+  showLoadingMessage('loaded')
 }
 
 function animate() {
@@ -255,7 +259,8 @@ function createAsteroid(position) {
   });
   let asteroid = new THREE.Mesh(geometry, material);
   if (position) {
-    let position3D = get3DPosition(position);
+    let position3D = new THREE.Vector3();
+    get3DPosition(position, position3D);
     asteroid.position.copy(position3D);
   } else {
     resetAsteroidPosition(asteroid);
@@ -283,7 +288,8 @@ function createStar(position) {
     textureMaterial: null
   };
   if (position) {
-    star.position.copy(get3DPosition(position));
+    get3DPosition(position, tempPosition3D);
+    star.position.copy(tempPosition3D);
     star.positionND = position.slice();
   } else {
     let positionND = new Array(numberOfDimensions).fill(0);
@@ -354,6 +360,7 @@ async function fetchTargetImage(position) {
 }
 
 async function saveGameProgress() {
+  showSaveMessage('saving');
   const gameData = {
     spaceship: {
       position: spaceshipPosition.slice(),
@@ -372,12 +379,12 @@ async function saveGameProgress() {
     const uuid = localStorage.getItem('gameUUID');
     const saveConfirmation = await saveGameAPI(uuid, gameData);
     console.log('Game saved to backend:', saveConfirmation);
-    showSaveMessage();
+    showSaveMessage('saved');
   } catch (error) {
     console.error('Save to backend failed, falling back to local save.');
     try {
       localStorage.setItem('spaceshipData', JSON.stringify(gameData));
-      showSaveMessage();
+      showSaveMessage('saved');
     } catch (e) {
       console.error('Failed to save game locally:', e);
       alert('Failed to save game locally.');
@@ -430,6 +437,7 @@ async function loadGameProgress() {
       }
       return;
     } catch (error) {
+      console.log(error)
       console.error('Load from backend failed, falling back to local load.');
     }
   }
