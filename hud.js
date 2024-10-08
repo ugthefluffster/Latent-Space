@@ -180,8 +180,10 @@ function showDimensionSelectionMenu(axis) {
 }
 
 function onAxisClick(event) {
-  const axis = event.target.getAttribute('data-axis');
-  showDimensionSelectionMenu(axis);
+  if (!isDimensionShifting) {
+    const axis = event.target.getAttribute('data-axis');
+    showDimensionSelectionMenu(axis);
+  }
 }
 
 function updateCoordinates() {

@@ -2,10 +2,10 @@ const API_BASE_URL = 'https://caiman-gentle-sunbird.ngrok-free.app';
 
 const numberOfDimensions = 5;
 
-const totalNumberOfStars = 6000;
+const totalNumberOfStars = 100000;
 const starSize = 500;
 const starDistanceMin = 1000;
-const starDistanceMax = 1000000;
+const starDistanceMax = 500000;
 
 const totalNumbersOfAsteroids = 5000;
 const asteroidSize = 1;
@@ -19,10 +19,11 @@ const superDeceleration = 500;
 const warpAcceleration = maxSpeed / 3;
 const warpDeceleration = maxSpeed / 3;
 
-const sliceThickness = 150000; // Determines how far stars in unmapped dimensions remain visible from the 3D slice.
-const perspectiveFactor = 15000000; // Controls the rate of size shrinkage for stars based on distance in unmapped dimensions.
+const perspectiveFactor = 10000000000; // Controls the rate of size shrinkage for stars based on distance in unmapped dimensions.
 const dimensionShiftDuration = 3 // Seconds
 
+const sliceThickness = 20000; // Determines how far stars in unmapped dimensions remain visible from the 3D slice.
+const showStarDistance = 200000; // Controls at what distance stars are visible
 const textureDistance = 50000; // Controls at what distance textures get rendered
 
 const dimensionColors = [

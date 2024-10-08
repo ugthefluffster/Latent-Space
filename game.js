@@ -1,6 +1,6 @@
 const clock = new THREE.Clock();
-
 const whiteMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+const tempPosition3D = new THREE.Vector3();
 
 let scene, camera, renderer;
 let spaceship;
@@ -299,7 +299,8 @@ function createStar(position) {
         positionND[dim] = (Math.random() - 0.5) * starDistanceMax;
       }
     }
-    star.position.copy(get3DPosition(positionND));
+    get3DPosition(positionND, tempPosition3D);
+    star.position.copy(tempPosition3D);
     star.positionND = positionND.slice();
   }
 
@@ -314,24 +315,27 @@ function createStar(position) {
 
 function pickRandomTarget() {
 
+  // // function disabled for now
+
   // // for debuggging, create a close star and pick it as target
   // const debugPositionND = new Array(numberOfDimensions).fill(10000);
   // const debugStarMesh = createStar(debugPositionND);
   // const debugStarData = stars.find(obj => obj.mesh === debugStarMesh);
   // targetObject = debugStarData;
 
-  targetObject = stars[Math.floor(Math.random() * stars.length)];
 
-  goalAchieved = false;
+  // targetObject = stars[Math.floor(Math.random() * stars.length)];
 
-  fetchTargetImage(targetObject.position)
-    .then(() => {
-      updateGoalNotification();
-    })
-    .catch(error => {
-      console.error('Failed to fetch target image:', error);
-      updateGoalNotification();
-    });
+  // goalAchieved = false;
+
+  // fetchTargetImage(targetObject.position)
+  //   .then(() => {
+  //     updateGoalNotification();
+  //   })
+  //   .catch(error => {
+  //     console.error('Failed to fetch target image:', error);
+  //     updateGoalNotification();
+  //   });
 }
 
 async function fetchTargetImage(position) {
@@ -554,29 +558,19 @@ function resetAsteroidPosition(asteroid) {
 
 function getDistanceFromSlice(starPositionND, t = null) {
   let distanceSquared = 0;
-  let currentMapping = isDimensionShifting && t !== null ? newAxisToDimension : axisToDimension;
+  const currentMapping =
+    isDimensionShifting && t !== null ? newAxisToDimension : axisToDimension;
+
+  // Precompute mapped dimensions for faster lookup
+  const mappedDimensions = new Set(Object.values(currentMapping));
+
   for (let dim = 0; dim < numberOfDimensions; dim++) {
-    if (!Object.values(currentMapping).includes(dim)) {
-      let delta = starPositionND[dim] - spaceshipPosition[dim];
+    if (!mappedDimensions.has(dim)) {
+      const delta = starPositionND[dim] - spaceshipPosition[dim];
       distanceSquared += delta * delta;
     }
   }
   return Math.sqrt(distanceSquared);
-}
-
-function updateStarVisibility(starData, distanceFromSlice) {
-  if (distanceFromSlice < sliceThickness) {
-    starData.mesh.visible = true;
-
-    // Calculate perspective scaling based on distance in unmapped dimensions
-    let scaleFactor = perspectiveFactor / (perspectiveFactor + distanceFromSlice);
-
-    // Apply the perspective scaling to the star's size
-    starData.mesh.scale.set(scaleFactor, scaleFactor, scaleFactor);
-
-  } else {
-    starData.mesh.visible = false;
-  }
 }
 
 function initiateDimensionShift(axis, targetDimension) {
@@ -604,11 +598,27 @@ function initiateDimensionShift(axis, targetDimension) {
   quaternionRotation.setFromAxisAngle(rotationAxis, angle);
   newQuaternion = oldQuaternion.clone().multiply(quaternionRotation);
 }
-
 function updateSceneObjects(t = null) {
-  stars.forEach((starData) => {
-    let positionND = starData.position.slice();
-    let position3D = new THREE.Vector3();
+  // Reusable vectors
+  const spaceshipPosition3D = new THREE.Vector3();
+  const position3D = new THREE.Vector3(); // For star positions
+  const tempVector = new THREE.Vector3(); // For temporary calculations if needed
+
+  // Get the 3D position of the spaceship
+  get3DPosition(spaceshipPosition, spaceshipPosition3D);
+  spaceship.position.copy(spaceshipPosition3D);
+
+  for (let i = 0; i < stars.length; i++) {
+    const starData = stars[i];
+    const positionND = starData.position; // Use directly without slicing
+
+    // Early exit: approximate distance check to spaceship
+    get3DPosition(positionND, position3D);
+    const distanceSquared = position3D.distanceToSquared(spaceshipPosition3D);
+    if (distanceSquared >= showStarDistance * showStarDistance) {
+      starData.mesh.visible = false;
+      continue;
+    }
 
     if (isDimensionShifting && t !== null) {
       if (!starData.initialPosition3D) {
@@ -617,49 +627,76 @@ function updateSceneObjects(t = null) {
           positionND[oldAxisToDimension.y],
           positionND[oldAxisToDimension.z]
         );
-
         starData.finalPosition3D = new THREE.Vector3(
           positionND[newAxisToDimension.x],
           positionND[newAxisToDimension.y],
           positionND[newAxisToDimension.z]
         );
       }
-      position3D.lerpVectors(starData.initialPosition3D, starData.finalPosition3D, t);
-      let distanceFromSlice = getDistanceFromSlice(positionND, t);
-      updateStarVisibility(starData, distanceFromSlice);
+      position3D.lerpVectors(
+        starData.initialPosition3D,
+        starData.finalPosition3D,
+        t
+      );
+    }
+
+    // Compute distance from the slice
+    const distanceFromSlice =
+      isDimensionShifting && t !== null
+        ? getDistanceFromSlice(positionND, t)
+        : getDistanceFromSlice(positionND);
+
+    // Check if the star is within the slice
+    if (distanceFromSlice >= sliceThickness) {
+      starData.mesh.visible = false;
+      continue;
+    }
+
+    // Star is visible
+    starData.mesh.visible = true;
+    starData.mesh.position.copy(position3D);
+
+    // Calculate perspective scaling based on distance in unmapped dimensions
+    const scaleFactor =
+      perspectiveFactor / (perspectiveFactor + distanceFromSlice);
+    starData.mesh.scale.set(scaleFactor, scaleFactor, scaleFactor);
+
+    // Handle texture logic if necessary
+    const uuid = localStorage.getItem('gameUUID'); // needs fixing!
+    if (distanceSquared < textureDistance * textureDistance && uuid) {
+      if (!starData.userData.hasTexture && !starData.userData.textureRequested) {
+        starData.userData.textureRequested = true;
+        fetchStarTexture(starData).catch((error) => {
+          console.error(
+            `Failed to load texture for star at position ${starData.position}:`,
+            error
+          );
+        });
+      }
+      if (
+        starData.userData.hasTexture &&
+        starData.mesh.material !== starData.userData.textureMaterial
+      ) {
+        starData.mesh.material = starData.userData.textureMaterial;
+      }
     } else {
-      position3D = get3DPosition(positionND);
-      let distanceFromSlice = getDistanceFromSlice(positionND);
-      updateStarVisibility(starData, distanceFromSlice);
-      let distanceInMappedDimensions = starData.mesh.position.distanceTo(spaceship.position);
-      const uuid = localStorage.getItem('gameUUID'); // needs fixing!
-      if (distanceInMappedDimensions < textureDistance && uuid) {
-        if (!starData.userData.hasTexture && !starData.userData.textureRequested) {
-          starData.userData.textureRequested = true;
-          fetchStarTexture(starData).catch((error) => {
-            console.error(`Failed to load texture for star at position ${starData.position}:`, error);
-          });
-        }
-        if (starData.userData.hasTexture && starData.mesh.material !== starData.userData.textureMaterial) {
-          starData.mesh.material = starData.userData.textureMaterial;
-        }
-      } else {
-        if (starData.userData.hasTexture && starData.mesh.material !== starData.userData.originalMaterial) {
-          starData.mesh.material = starData.userData.originalMaterial;
-        }
-        starData.userData.textureRequested = false;
-        if (starData.userData.abortController) {
-          starData.userData.abortController.abort();
-          delete starData.userData.abortController;
-        }
+      if (
+        starData.userData.hasTexture &&
+        starData.mesh.material !== starData.userData.originalMaterial
+      ) {
+        starData.mesh.material = starData.userData.originalMaterial;
+      }
+      starData.userData.textureRequested = false;
+      if (starData.userData.abortController) {
+        starData.userData.abortController.abort();
+        delete starData.userData.abortController;
       }
     }
-    starData.mesh.position.copy(position3D);
-  });
-
-  const spaceshipPosition3D = get3DPosition(spaceshipPosition);
-  spaceship.position.copy(spaceshipPosition3D);
+  }
 }
+
+
+
 
 async function fetchStarTexture(starData) {
   try {
@@ -687,8 +724,8 @@ async function fetchStarTexture(starData) {
   }
 }
 
-function get3DPosition(positionND) {
-  return new THREE.Vector3(
+function get3DPosition(positionND, outVector) {
+  outVector.set(
     positionND[axisToDimension.x],
     positionND[axisToDimension.y],
     positionND[axisToDimension.z]

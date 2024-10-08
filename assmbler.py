@@ -42,7 +42,6 @@ def combine_html_and_js():
 
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
 
-    # Create the output filename by adding '-assembled' to the original HTML file's name
     output_file = f"{os.path.splitext(html_file)[0]}-assembled-{timestamp}.html"
 
     # Read the HTML file content
