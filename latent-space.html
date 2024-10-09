@@ -123,7 +123,8 @@
 
       #save-message,
       #reset-message,
-      #loading-message {
+      #loading-message,
+      #warning-message {
         position: absolute;
         top: 50%;
         left: 50%;
@@ -139,8 +140,13 @@
         border-radius: 10px;
       }
 
+      #warning-message {
+        color: red
+      }
+
       #save-button,
-      #reset-button {
+      #reset-button,
+      #set-prompt-button {
         position: absolute;
         left: 10px;
         color: white;
@@ -152,7 +158,6 @@
         border: 1px solid #888;
         border-radius: 5px;
         cursor: pointer;
-        margin-top: 10px;
       }
 
       #reset-button {
@@ -161,6 +166,10 @@
 
       #save-button {
         bottom: 130px;
+      }
+
+      #set-prompt-button {
+        bottom: 170px;
       }
 
       #goal-notification {
@@ -243,6 +252,58 @@
         margin: 5px 0;
         cursor: pointer;
       }
+
+
+      .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0, 0, 0, 0.5);
+      }
+
+      .modal-content {
+        background-color: #fefefe;
+        margin: 10% auto;
+        padding: 20px;
+        border: 1px solid #888;
+        width: 80%;
+        max-width: 500px;
+        border-radius: 8px;
+        position: relative;
+      }
+
+      .close-button {
+        color: #aaa;
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+        position: absolute;
+        top: 10px;
+        right: 20px;
+        cursor: pointer;
+      }
+
+      .close-button:hover,
+      .close-button:focus {
+        color: black;
+        text-decoration: none;
+      }
+
+      textarea {
+        padding: 10px;
+        resize: vertical;
+        font-size: 16px;
+      }
+
+      .status-message {
+        margin-top: 10px;
+        font-size: 14px;
+      }
     </style>
   </head>
 
@@ -297,6 +358,7 @@
     <div id="save-message">Game Saved!</div>
     <div id="loading-message">Loading...</div>
     <div id="reset-message">Game Reset!</div>
+    <div id="warning-message">No Server Found</div>
     <div id="goal-notification">
       <!-- Loading target... -->
     </div>
@@ -305,6 +367,18 @@
       <div id="dimension-menu-content">
         <p>Select a Dimension for Axis <span id="selected-axis"></span>:</p>
         <ul id="dimension-list"></ul>
+      </div>
+    </div>
+    <div id="set-prompt-button">Set Prompt</div>
+    <div id="prompt-modal" class="modal">
+      <div class="modal-content">
+        <span class="close-button">&times;</span>
+        <h2>Set New Prompt</h2>
+        <textarea id="prompt-textbox" rows="4" cols="50"
+          placeholder="Enter your prompt here..."></textarea>
+        <br>
+        <button id="send-prompt-button" class="btn">Send</button>
+        <div id="prompt-status" class="status-message"></div>
       </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js">

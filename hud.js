@@ -84,19 +84,39 @@ function showPausedMessage(show) {
 function showSaveMessage(status) {
   const saveMessage = document.getElementById('save-message');
   saveMessage.style.display = 'block';
-  if (status == 'saving') {
+  if (status === 'saving') {
     saveMessage.innerHTML = 'Saving Game...'
   }
-  if (status == 'saved') {
+  if (status === 'saved') {
     saveMessage.innerHTML = 'Game Saved!'
     setTimeout(() => {
       saveMessage.style.display = 'none';
+      if (!serverFound) {
+        showWarningMessage()
+      }
     }, 2000);
   }
 }
 
-function showResetMessage() {
-  const saveMessage = document.getElementById('reset-message');
+function showResetMessage(status) {
+  const resetMessage = document.getElementById('reset-message');
+  resetMessage.style.display = 'block';
+  if (status === 'resetting') {
+    resetMessage.innerHTML = 'Resetting Game...';
+  }
+  if (status === 'reset') {
+    resetMessage.innerHTML = 'Game Reset!';
+    setTimeout(() => {
+      resetMessage.style.display = 'none';
+      if (!serverFound) {
+        showWarningMessage()
+      }
+    }, 2000);
+  }
+}
+
+function showWarningMessage() {
+  const saveMessage = document.getElementById('warning-message');
   saveMessage.style.display = 'block';
   setTimeout(() => {
     saveMessage.style.display = 'none';
@@ -111,6 +131,9 @@ function showLoadingMessage(status) {
   if (status == 'loaded') {
     setTimeout(() => {
       saveMessage.style.display = 'none';
+      if (!serverFound) {
+        showWarningMessage()
+      }
     }, 2000);
   }
 }
@@ -119,7 +142,6 @@ function updateGoalNotification() {
   const goalNotification = document.getElementById('goal-notification');
 
   if (goalAchieved) {
-    console.log('1')
     let coordinatesText = `<div class="goal-coordinates"><small>`;
     for (let dim = 0; dim < numberOfDimensions; dim++) {
       coordinatesText += `Dim ${dim + 1}: ${Math.round(targetObject.position[dim])}`;
@@ -133,7 +155,6 @@ function updateGoalNotification() {
       <br>You can reset the game to start a new hunt.
     `;
   } else if (targetObject) {
-    console.log('2')
     let coordinatesText = `<div class="goal-coordinates"><small>`;
     for (let dim = 0; dim < numberOfDimensions; dim++) {
       coordinatesText += `Dim ${dim + 1}: ${Math.round(targetObject.position[dim])}`;
@@ -147,12 +168,10 @@ function updateGoalNotification() {
       ${coordinatesText}
     `;
   } else {
-    console.log('3')
-    goalNotification.innerHTML = 'Loading target...';
+    // goalNotification.innerHTML = 'Loading target...';
+    goalNotification.innerHTML = '';
   }
 }
-
-
 
 function updateAxisLabelsAndColors() {
   const xAxisElement = document.getElementById('coordinate-x');

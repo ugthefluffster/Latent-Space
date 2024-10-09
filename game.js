@@ -45,6 +45,9 @@ let oldAxisToDimension = null;
 let newAxisToDimension = null;
 let controlsEnabled = true;
 
+let serverFound = false;
+let modalOpen = false;
+
 init();
 animate();
 
@@ -61,6 +64,7 @@ async function init() {
   renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
   document.body.appendChild(renderer.domElement);
+  document.getElementById("overlay").style.display = "none";
   let geometry = new THREE.ConeGeometry(0.5, 1, 32);
   let material = new THREE.MeshBasicMaterial({ color: 0xffff00 });
   spaceship = new THREE.Mesh(geometry, material);
@@ -74,15 +78,14 @@ async function init() {
   } else {
     try {
       const uuid = await registerNewGameAPI();
+      serverFound = true;
       console.log('Game registered with UUID:', uuid);
       localStorage.setItem('gameUUID', uuid);
     } catch (error) {
+      serverFound = false;
       console.log('Register failed, defaulting to local initialization');
     }
   }
-  document.addEventListener('keydown', onKeyDown, false);
-  document.addEventListener('keyup', onKeyUp, false);
-  document.addEventListener('mousemove', onMouseMove, false);
   document.getElementById('save-button').addEventListener('click', function () {
     saveGameProgress();
   });
@@ -381,6 +384,7 @@ async function saveGameProgress() {
     console.log('Game saved to backend:', saveConfirmation);
     showSaveMessage('saved');
   } catch (error) {
+    serverFound = false;
     console.error('Save to backend failed, falling back to local save.');
     try {
       localStorage.setItem('spaceshipData', JSON.stringify(gameData));
@@ -397,8 +401,8 @@ async function loadGameProgress() {
   if (uuid) {
     try {
       const data = await loadGameAPI(uuid);
+      serverFound = true;
       console.log('Game loaded from backend:', data);
-
       if (data.spaceship) {
         const { position, orientation } = data.spaceship;
         spaceshipPosition = position.slice();
@@ -437,7 +441,7 @@ async function loadGameProgress() {
       }
       return;
     } catch (error) {
-      console.log(error)
+      serverFound = false;
       console.error('Load from backend failed, falling back to local load.');
     }
   }
@@ -481,6 +485,8 @@ async function loadGameProgress() {
 }
 
 async function resetGame() {
+  showResetMessage('resetting');
+  await new Promise(resolve => setTimeout(resolve, 0)); // Allow the reset message to display before continuing
   localStorage.removeItem('spaceshipData');
   targetImageURL = null;
   targetObject = null;
@@ -506,24 +512,28 @@ async function resetGame() {
   showPausedMessage(false);
   pickRandomTarget();
   const uuid = localStorage.getItem('gameUUID');
-  showResetMessage();
   if (uuid) {
     localStorage.removeItem('gameUUID');
     try {
       const resetConfirmation = await resetGameAPI(uuid);
+      serverFound = true;
       console.log('Game reset on backend:', resetConfirmation);
     } catch (error) {
+      serverFound = false;
       console.error('Reset on backend failed, falling back to local reset.');
     }
   }
   try {
     const uuid = await registerNewGameAPI();
+    serverFound = true;
     console.log('Game registered with UUID:', uuid);
     localStorage.setItem('gameUUID', uuid);
   } catch (error) {
+    serverFound = false;
     console.log('Register failed, defaulting to local initialization');
   }
   updateGoalNotification();
+  showResetMessage('reset')
 }
 
 function clearStars() {
@@ -702,9 +712,6 @@ function updateSceneObjects(t = null) {
     }
   }
 }
-
-
-
 
 async function fetchStarTexture(starData) {
   try {
