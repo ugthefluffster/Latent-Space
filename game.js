@@ -746,3 +746,37 @@ function get3DPosition(positionND, outVector) {
     positionND[axisToDimension.z]
   );
 }
+
+const promptModal = document.getElementById('prompt-modal');
+const promptTextbox = document.getElementById('prompt-textbox');
+const promptStatus = document.getElementById('prompt-status');
+document.getElementById('set-prompt-button').addEventListener('click', openPromptModal);
+document.querySelector('.close-button').addEventListener('click', closePromptModal);
+
+async function openPromptModal() {
+  paused = true;
+  modalOpen = true;
+  promptStatus.textContent = ''; 
+  const currentPrompt = await getPromptAPI();
+  promptTextbox.value = currentPrompt || '';
+  promptModal.style.display = 'block';
+}
+
+function closePromptModal() {
+  promptModal.style.display = 'none';
+  modalOpen = false;
+  paused = false;
+  showPausedMessage(paused);
+}
+
+document.getElementById('send-prompt-button').addEventListener('click', async () => {
+  const newPrompt = promptTextbox.value.trim();
+  if (newPrompt === '') {
+    promptStatus.textContent = 'Prompt cannot be empty.';
+    promptStatus.style.color = 'red';
+    return;
+  }
+
+  await setPromptAPI(newPrompt);
+});
+

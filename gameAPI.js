@@ -1,4 +1,3 @@
-// Function to register a new game and get a UUID
 async function registerNewGameAPI() {
   try {
     const response = await fetch(`${API_BASE_URL}/register`, {
@@ -19,7 +18,6 @@ async function registerNewGameAPI() {
   }
 }
 
-// Function to save game data
 async function saveGameAPI(uuid, gameData) {
   try {
     const response = await fetch(`${API_BASE_URL}/save`, {
@@ -35,14 +33,13 @@ async function saveGameAPI(uuid, gameData) {
     }
 
     const data = await response.json();
-    return data.confirmation; // Assuming the backend sends a confirmation message
+    return data.confirmation; 
   } catch (error) {
     console.error(error);
     throw error;
   }
 }
 
-// Function to load game data
 async function loadGameAPI(uuid) {
   try {
     const response = await fetch(`${API_BASE_URL}/load`, {
@@ -66,7 +63,6 @@ async function loadGameAPI(uuid) {
   }
 }
 
-// Function to reset the game
 async function resetGameAPI(uuid) {
   try {
     const response = await fetch(`${API_BASE_URL}/reset`, {
@@ -84,7 +80,7 @@ async function resetGameAPI(uuid) {
     const data = await response.json();
 
 
-    return data.confirmation; // Assuming the backend sends a confirmation message
+    return data.confirmation; 
   } catch (error) {
     console.error(error);
     throw error;
@@ -105,7 +101,7 @@ async function fetchStarTextureAPI(uuid, starPosition, signal = null, retries = 
       };
 
       if (signal) {
-        fetchOptions.signal = signal; // Add signal if provided
+        fetchOptions.signal = signal; 
       }
 
       const response = await fetch(`${API_BASE_URL}/getStarTexture`, fetchOptions);
@@ -122,12 +118,11 @@ async function fetchStarTextureAPI(uuid, starPosition, signal = null, retries = 
       }
 
       const blob = await response.blob();
-      return blob; // Return the image as a Blob
+      return blob; 
     } catch (error) {
-      // Handle the case where the fetch is aborted
       if (signal && signal.aborted) {
         console.log(`Fetch for star at position ${starPosition} was aborted.`);
-        return; // Exit the function if aborted
+        return; 
       }
       console.error(`Error fetching star texture at position ${starPosition}:`, error);
       await new Promise(resolve => setTimeout(resolve, delay));
@@ -139,12 +134,7 @@ async function fetchStarTextureAPI(uuid, starPosition, signal = null, retries = 
 }
 
 
-
-const promptModal = document.getElementById('prompt-modal');
-const promptTextbox = document.getElementById('prompt-textbox');
-const promptStatus = document.getElementById('prompt-status');
-
-async function getPrompt() {
+async function getPromptAPI() {
   const uuid = localStorage.getItem('gameUUID');
   if (!uuid) {
     console.error('No game UUID found.');
@@ -179,7 +169,7 @@ async function getPrompt() {
   }
 }
 
-async function setPrompt(newPrompt) {
+async function setPromptAPI(newPrompt) {
   const uuid = localStorage.getItem('gameUUID');
   if (!uuid) {
     console.error('No game UUID found.');
@@ -216,38 +206,4 @@ async function setPrompt(newPrompt) {
   }
 }
 
-async function openPromptModal() {
-  paused = true;
-  modalOpen = true;
-  promptStatus.textContent = ''; 
-  const currentPrompt = await getPrompt();
-  promptTextbox.value = currentPrompt || '';
-  promptModal.style.display = 'block';
-}
-
-function closePromptModal() {
-  promptModal.style.display = 'none';
-  modalOpen = false;
-  paused = false;
-  showPausedMessage(paused);
-}
-
-document.getElementById('set-prompt-button').addEventListener('click', openPromptModal);
-document.querySelector('.close-button').addEventListener('click', closePromptModal);
-document.getElementById('send-prompt-button').addEventListener('click', async () => {
-  const newPrompt = promptTextbox.value.trim();
-  if (newPrompt === '') {
-    promptStatus.textContent = 'Prompt cannot be empty.';
-    promptStatus.style.color = 'red';
-    return;
-  }
-
-  await setPrompt(newPrompt);
-});
-
-window.addEventListener('click', (event) => {
-  if (event.target === promptModal) {
-    closePromptModal();
-  }
-});
 
