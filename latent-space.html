@@ -146,7 +146,8 @@
 
       #save-button,
       #reset-button,
-      #set-prompt-button {
+      #set-prompt-button,
+      #set-directions-button {
         position: absolute;
         left: 10px;
         color: white;
@@ -170,6 +171,10 @@
 
       #set-prompt-button {
         bottom: 170px;
+      }
+
+      #set-directions-button {
+        bottom: 210px;
       }
 
       #goal-notification {
@@ -370,6 +375,7 @@
       </div>
     </div>
     <div id="set-prompt-button">Set Prompt</div>
+    <div id="set-directions-button">Set Directions</div>
     <div id="prompt-modal" class="modal">
       <div class="modal-content">
         <span class="close-button">&times;</span>
@@ -379,6 +385,19 @@
         <br>
         <button id="send-prompt-button" class="btn">Send</button>
         <div id="prompt-status" class="status-message"></div>
+      </div>
+    </div>
+    <div id="directions-modal" class="modal">
+      <div class="modal-content">
+        <span class="close-button" id="close-directions-modal">×</span>
+        <h2>Set Directions</h2>
+        <div id="descriptors-input">
+          <!-- Descriptors will be added here dynamically -->
+        </div>
+        <button id="send-directions-button" class="btn">Set Directions</button>
+        <progress id="direction-progress" max="100" value="0"></progress> <span
+          id="progress-text">0%</span>
+        <div id="directions-status" class="status-message"></div>
       </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js">
