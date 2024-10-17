@@ -246,11 +246,9 @@ async function setDirectionsAPI(descriptors, iterations = 300) {
           const data = line.substring(5);
           if (data === "100") {
             console.log("Directions set successfully!");
-            alert("Directions set successfully!"); // Or any other way to notify the user
             finished = true;
           } else if (data === "error") {
             console.error("Error setting directions on the server.");
-            alert("Error setting directions on the server.");
             finished = true;
           } else {
             progress = parseInt(data);

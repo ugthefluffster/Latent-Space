@@ -1,9 +1,7 @@
-set local storage uuid only if saving. save uuid to variable otherwise. maybe no local save?
-saving and resetting still buggy - handle uuid not found on server - register new uuid!
 fix dimension shift animation
 scale direction strength to max star distance (send to server?)
 improve speed controls
-
+handle different number of directions\dimentions
 separate speedometer for every axis
 auto alignment to axis
 always generate target image first

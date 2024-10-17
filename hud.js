@@ -131,7 +131,8 @@ function showLoadingMessage(status) {
   if (status == 'loaded') {
     setTimeout(() => {
       saveMessage.style.display = 'none';
-      if (!serverFound) {
+      const existingUUID = localStorage.getItem('gameUUID');
+      if (existingUUID && !serverFound) {
         showWarningMessage()
       }
     }, 2000);

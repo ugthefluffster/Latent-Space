@@ -50,9 +50,8 @@ let modalOpen = false;
 
 init();
 animate();
-
 async function init() {
-  showLoadingMessage('loading')
+  showLoadingMessage('loading');
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(
     75,
@@ -76,15 +75,10 @@ async function init() {
     console.log('UUID found:', existingUUID);
     await loadGameProgress();
   } else {
-    try {
-      const uuid = await registerNewGameAPI();
-      serverFound = true;
-      console.log('Game registered with UUID:', uuid);
-      localStorage.setItem('gameUUID', uuid);
-    } catch (error) {
-      serverFound = false;
-      console.log('Register failed, defaulting to local initialization');
-    }
+    // Initialize game with default settings
+    spaceshipPosition = new Array(numberOfDimensions).fill(0);
+    spaceship.quaternion.set(0, 0, 0, 1);
+    camera.position.copy(spaceship.position);
   }
   document.getElementById('save-button').addEventListener('click', function () {
     saveGameProgress();
@@ -105,7 +99,7 @@ async function init() {
     pickRandomTarget();
   }
   updateAxisLabelsAndColors();
-  showLoadingMessage('loaded')
+  showLoadingMessage('loaded');
 }
 
 function animate() {
@@ -364,6 +358,22 @@ async function fetchTargetImage(position) {
 
 async function saveGameProgress() {
   showSaveMessage('saving');
+
+  let uuid = localStorage.getItem('gameUUID');
+
+  if (!uuid) {
+    try {
+      uuid = await registerNewGameAPI();
+      serverFound = true;
+      console.log('Game registered with UUID:', uuid);
+      localStorage.setItem('gameUUID', uuid);
+    } catch (error) {
+      serverFound = false;
+      console.error('Failed to register new game:', error);
+      return;
+    }
+  }
+
   const gameData = {
     spaceship: {
       position: spaceshipPosition.slice(),
@@ -378,21 +388,14 @@ async function saveGameProgress() {
       position: obj.position.slice(),
     })),
   };
+
   try {
-    const uuid = localStorage.getItem('gameUUID');
     const saveConfirmation = await saveGameAPI(uuid, gameData);
     console.log('Game saved to backend:', saveConfirmation);
     showSaveMessage('saved');
   } catch (error) {
     serverFound = false;
-    console.error('Save to backend failed, falling back to local save.');
-    try {
-      localStorage.setItem('spaceshipData', JSON.stringify(gameData));
-      showSaveMessage('saved');
-    } catch (e) {
-      console.error('Failed to save game locally:', e);
-      alert('Failed to save game locally.');
-    }
+    console.error('Failed to save game to backend:', error);
   }
 }
 
@@ -439,43 +442,9 @@ async function loadGameProgress() {
           console.warn("Target object not found after loading.");
         }
       }
-      return;
     } catch (error) {
       serverFound = false;
-      console.error('Load from backend failed, falling back to local load.');
-    }
-  }
-
-  const savedData = localStorage.getItem('spaceshipData');
-  if (savedData) {
-    const data = JSON.parse(savedData);
-    if (data.spaceship) {
-      const { position, orientation } = data.spaceship;
-      spaceshipPosition = position.slice();
-      spaceship.quaternion.fromArray(orientation);
-      camera.quaternion.copy(spaceship.quaternion);
-    }
-    if (data.axisToDimension) {
-      axisToDimension = { ...data.axisToDimension };
-      updateAxisLabelsAndColors();
-      updateGimbalAxisColors();
-    }
-    if (data.objects && Array.isArray(data.objects)) {
-      data.objects.forEach(objData => {
-        createStar(objData.position);
-      });
-    }
-    if (data.goal && data.goal.position) {
-      const position = data.goal.position;
-      targetObject = stars.find(obj => {
-        return obj.position.every((val, index) => val === position[index]);
-      });
-      if (targetObject) {
-        goalAchieved = data.goalAchieved || false;
-        updateGoalNotification();
-      } else {
-        console.warn("Target object not found after loading.");
-      }
+      console.error('Failed to load game from backend:', error);
     }
   } else {
     spaceshipPosition = new Array(numberOfDimensions).fill(0);
@@ -487,7 +456,7 @@ async function loadGameProgress() {
 async function resetGame() {
   showResetMessage('resetting');
   await new Promise(resolve => setTimeout(resolve, 0)); // Allow the reset message to display before continuing
-  localStorage.removeItem('spaceshipData');
+
   targetImageURL = null;
   targetObject = null;
   spaceshipPosition = new Array(numberOfDimensions).fill(0);
@@ -511,30 +480,25 @@ async function resetGame() {
   showWarpMessage(null);
   showPausedMessage(false);
   pickRandomTarget();
+
   const uuid = localStorage.getItem('gameUUID');
   if (uuid) {
-    localStorage.removeItem('gameUUID');
     try {
       const resetConfirmation = await resetGameAPI(uuid);
       serverFound = true;
       console.log('Game reset on backend:', resetConfirmation);
     } catch (error) {
       serverFound = false;
-      console.error('Reset on backend failed, falling back to local reset.');
+      console.error('Failed to reset game on backend:', error);
     }
-  }
-  try {
-    const uuid = await registerNewGameAPI();
-    serverFound = true;
-    console.log('Game registered with UUID:', uuid);
-    localStorage.setItem('gameUUID', uuid);
-  } catch (error) {
-    serverFound = false;
-    console.log('Register failed, defaulting to local initialization');
+    localStorage.removeItem('gameUUID'); // Remove the gameUUID from local storage after resetting the game
+    console.log('Game UUID removed from local storage');
   }
   updateGoalNotification();
-  showResetMessage('reset')
+  showResetMessage('reset');
 }
+
+
 
 function clearStars() {
   function disposeObject(obj) {
