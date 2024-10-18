@@ -2,6 +2,8 @@ const clock = new THREE.Clock();
 const whiteMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
 const tempPosition3D = new THREE.Vector3();
 
+tempUUID = null;
+
 let scene, camera, renderer;
 let spaceship;
 let asteroids = [];
@@ -50,6 +52,7 @@ let modalOpen = false;
 
 init();
 animate();
+
 async function init() {
   showLoadingMessage('loading');
   scene = new THREE.Scene();
@@ -75,7 +78,15 @@ async function init() {
     console.log('UUID found:', existingUUID);
     await loadGameProgress();
   } else {
-    // Initialize game with default settings
+    try {
+      tempUUID = await registerNewGameAPI();
+      console.log('New tempUUID registered:', tempUUID);
+      serverFound = true;
+    } catch (error) {
+      console.error('Failed to register new game, server might be down:', error);
+      tempUUID = null;
+      serverFound = false;
+    }
     spaceshipPosition = new Array(numberOfDimensions).fill(0);
     spaceship.quaternion.set(0, 0, 0, 1);
     camera.position.copy(spaceship.position);
@@ -342,7 +353,7 @@ function pickRandomTarget() {
 }
 
 async function fetchTargetImage(position) {
-  const uuid = localStorage.getItem('gameUUID');
+  const uuid = tempUUID || localStorage.getItem('gameUUID');
   if (!uuid) {
     console.error('No game UUID found.');
     throw new Error('No game UUID found.');
@@ -359,44 +370,46 @@ async function fetchTargetImage(position) {
 async function saveGameProgress() {
   showSaveMessage('saving');
 
-  let uuid = localStorage.getItem('gameUUID');
+  let uuid = tempUUID || localStorage.getItem('gameUUID');
 
   if (!uuid) {
     try {
       uuid = await registerNewGameAPI();
       serverFound = true;
-      console.log('Game registered with UUID:', uuid);
       localStorage.setItem('gameUUID', uuid);
     } catch (error) {
       serverFound = false;
-      console.error('Failed to register new game:', error);
+      showSaveMessage('done');
       return;
     }
+  } else if (tempUUID) {
+    localStorage.setItem('gameUUID', tempUUID);
   }
 
   const gameData = {
     spaceship: {
       position: spaceshipPosition.slice(),
-      orientation: spaceship.quaternion.toArray()
+      orientation: spaceship.quaternion.toArray(),
     },
     goal: {
-      position: targetObject ? targetObject.position.slice() : null
+      position: targetObject ? targetObject.position.slice() : null,
     },
     goalAchieved: goalAchieved,
     axisToDimension: { ...axisToDimension },
-    objects: stars.map(obj => ({
+    objects: stars.map((obj) => ({
       position: obj.position.slice(),
     })),
   };
 
   try {
-    const saveConfirmation = await saveGameAPI(uuid, gameData);
-    console.log('Game saved to backend:', saveConfirmation);
-    showSaveMessage('saved');
+    await saveGameAPI(uuid, gameData);
+    tempUUID = null;
+    serverFound = true;
   } catch (error) {
     serverFound = false;
-    console.error('Failed to save game to backend:', error);
   }
+
+  showSaveMessage('done');
 }
 
 async function loadGameProgress() {
@@ -455,8 +468,9 @@ async function loadGameProgress() {
 
 async function resetGame() {
   showResetMessage('resetting');
-  await new Promise(resolve => setTimeout(resolve, 0)); // Allow the reset message to display before continuing
+  await new Promise((resolve) => setTimeout(resolve, 0)); // Allow the reset message to display before continuing
 
+  // Reset game state
   targetImageURL = null;
   targetObject = null;
   spaceshipPosition = new Array(numberOfDimensions).fill(0);
@@ -491,12 +505,24 @@ async function resetGame() {
       serverFound = false;
       console.error('Failed to reset game on backend:', error);
     }
-    localStorage.removeItem('gameUUID'); // Remove the gameUUID from local storage after resetting the game
+    localStorage.removeItem('gameUUID');
     console.log('Game UUID removed from local storage');
   }
+
+  try {
+    tempUUID = await registerNewGameAPI();
+    serverFound = true;
+    console.log('New tempUUID registered:', tempUUID);
+  } catch (error) {
+    serverFound = false;
+    console.error('Failed to register new game after reset:', error);
+    tempUUID = null; 
+  }
+
   updateGoalNotification();
   showResetMessage('reset');
 }
+
 
 
 
@@ -580,6 +606,7 @@ function initiateDimensionShift(axis, targetDimension) {
   quaternionRotation.setFromAxisAngle(rotationAxis, angle);
   newQuaternion = oldQuaternion.clone().multiply(quaternionRotation);
 }
+
 function updateSceneObjects(t = null) {
   // Reusable vectors
   const spaceshipPosition3D = new THREE.Vector3();
@@ -644,7 +671,7 @@ function updateSceneObjects(t = null) {
     starData.mesh.scale.set(scaleFactor, scaleFactor, scaleFactor);
 
     // Handle texture logic if necessary
-    const uuid = localStorage.getItem('gameUUID'); // needs fixing!
+    const uuid = tempUUID || localStorage.getItem('gameUUID'); // needs fixing!
     if (distanceSquared < textureDistance * textureDistance && uuid) {
       if (!starData.userData.hasTexture && !starData.userData.textureRequested) {
         starData.userData.textureRequested = true;
@@ -679,7 +706,7 @@ function updateSceneObjects(t = null) {
 
 async function fetchStarTexture(starData) {
   try {
-    const uuid = localStorage.getItem('gameUUID');
+    const uuid = tempUUID || localStorage.getItem('gameUUID');
     const abortController = new AbortController();
     starData.userData.abortController = abortController;
     const textureBlob = await fetchStarTextureAPI(uuid, starData.position, abortController.signal);

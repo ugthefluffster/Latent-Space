@@ -83,18 +83,22 @@ function showPausedMessage(show) {
 
 function showSaveMessage(status) {
   const saveMessage = document.getElementById('save-message');
+  const warningMessage = document.getElementById('warning-message');
   saveMessage.style.display = 'block';
+  warningMessage.style.display = 'none';
+
   if (status === 'saving') {
-    saveMessage.innerHTML = 'Saving Game...'
-  }
-  if (status === 'saved') {
-    saveMessage.innerHTML = 'Game Saved!'
-    setTimeout(() => {
+    saveMessage.innerHTML = 'Saving Game...';
+  } else if (status === 'done') {
+    if (!serverFound) {
+      showWarningMessage();
       saveMessage.style.display = 'none';
-      if (!serverFound) {
-        showWarningMessage()
-      }
-    }, 2000);
+    } else {
+      saveMessage.innerHTML = 'Game Saved!';
+      setTimeout(() => {
+        saveMessage.style.display = 'none';
+      }, 2000);
+    }
   }
 }
 
@@ -116,10 +120,10 @@ function showResetMessage(status) {
 }
 
 function showWarningMessage() {
-  const saveMessage = document.getElementById('warning-message');
-  saveMessage.style.display = 'block';
+  const warningMessage = document.getElementById('warning-message');
+  warningMessage.style.display = 'block';
   setTimeout(() => {
-    saveMessage.style.display = 'none';
+    warningMessage.style.display = 'none';
   }, 2000);
 }
 
@@ -131,8 +135,7 @@ function showLoadingMessage(status) {
   if (status == 'loaded') {
     setTimeout(() => {
       saveMessage.style.display = 'none';
-      const existingUUID = localStorage.getItem('gameUUID');
-      if (existingUUID && !serverFound) {
+      if (!serverFound) {
         showWarningMessage()
       }
     }, 2000);

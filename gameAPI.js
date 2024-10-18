@@ -135,7 +135,7 @@ async function fetchStarTextureAPI(uuid, starPosition, signal = null, retries = 
 
 
 async function getPromptAPI() {
-  const uuid = localStorage.getItem('gameUUID');
+  const uuid = tempUUID || localStorage.getItem('gameUUID');
   if (!uuid) {
     console.error('No game UUID found.');
     promptStatus.textContent = 'Error: No game UUID found.';
@@ -170,7 +170,7 @@ async function getPromptAPI() {
 }
 
 async function setPromptAPI(newPrompt) {
-  const uuid = localStorage.getItem('gameUUID');
+  const uuid = tempUUID || localStorage.getItem('gameUUID');
   if (!uuid) {
     console.error('No game UUID found.');
     promptStatus.textContent = 'Error: No game UUID found.';
@@ -205,69 +205,6 @@ async function setPromptAPI(newPrompt) {
     promptStatus.style.color = 'red';
   }
 }
-
-async function setDirectionsAPI(descriptors, iterations = 300) {
-  const uuid = localStorage.getItem('gameUUID');
-  if (!uuid) {
-    console.error('No game UUID found.');
-    return; // Or handle the error as needed
-  }
-
-  try {
-    const response = await fetch(`${API_BASE_URL}/setDirections`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ uuid, descriptors, iterations }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json(); // Try to parse error as JSON
-      const errorMessage = errorData?.error || response.statusText;
-      throw new Error(`Failed to set directions: ${errorMessage}`);
-    }
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let progress = 0;
-    let finished = false;
-
-
-    while (!finished) {
-      const { done, value } = await reader.read();
-      if (done) {
-        break;
-      }
-      const chunk = decoder.decode(value);
-      const lines = chunk.split('\n\n');
-      for (const line of lines) {
-        if (line.startsWith("data:")) {
-          const data = line.substring(5);
-          if (data === "100") {
-            console.log("Directions set successfully!");
-            finished = true;
-          } else if (data === "error") {
-            console.error("Error setting directions on the server.");
-            finished = true;
-          } else {
-            progress = parseInt(data);
-            directionProgress.value = progress; 
-            progressText.textContent = `${progress}%`;
-          }
-        }
-      }
-    }
-  } catch (error) {
-    if (error.message.includes('NetworkError')) {
-      showWarningMessage()
-      serverFound = false
-    }
-    console.error('Error setting directions:', error);
-    // Handle error, e.g., show an error message to the user
-  }
-}
-
 
 const directionsModal = document.getElementById('directions-modal');
 const descriptorsInput = document.getElementById('descriptors-input');
@@ -350,6 +287,7 @@ async function setDirections() {
   progressText.textContent = '0%';
 
   try {
+    const uuid = tempUUID || localStorage.getItem('gameUUID')
     const response = await fetch(`${API_BASE_URL}/setDirections`, {
       method: 'POST',
       headers: {
@@ -358,7 +296,7 @@ async function setDirections() {
         'Cache-Control': 'no-cache',
         'Accept': 'text/event-stream'
       },
-      body: JSON.stringify({ uuid: localStorage.getItem('gameUUID'), descriptors }),
+      body: JSON.stringify({ uuid: uuid, descriptors }),
     });
 
     if (!response.ok) {
