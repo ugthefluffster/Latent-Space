@@ -91,15 +91,22 @@ async function init() {
     spaceship.quaternion.set(0, 0, 0, 1);
     camera.position.copy(spaceship.position);
   }
-  document.getElementById('save-button').addEventListener('click', function () {
-    saveGameProgress();
-  });
-  document.getElementById('reset-button').addEventListener('click', function () {
-    resetGame();
-  });
+  
+  document.addEventListener('keydown', event => handleKey(event, true), false);
+  document.addEventListener('keyup', event => handleKey(event, false), false);
+  document.addEventListener('mousemove', updateMousePosition, false);
+  document.getElementById('save-button').addEventListener('click', saveGameProgress);
+  document.getElementById('reset-button').addEventListener('click', resetGame);
+  document.getElementById('set-directions-button').addEventListener('click', openDirectionsModal);
+  document.getElementById('close-directions-modal').addEventListener('click', closeDirectionsModal);
+  document.getElementById('send-directions-button').addEventListener('click', setDirections);
+  document.getElementById('set-prompt-button').addEventListener('click', openPromptModal);
+  document.querySelector('.close-button').addEventListener('click', closePromptModal);
+  document.getElementById('send-prompt-button').addEventListener('click', handlePromptSubmit);
   document.querySelectorAll('.axis').forEach(axisElement => {
     axisElement.addEventListener('click', onAxisClick);
   });
+
   for (let i = 0; i < totalNumbersOfAsteroids; i++) {
     createAsteroid();
   };
@@ -516,7 +523,7 @@ async function resetGame() {
   } catch (error) {
     serverFound = false;
     console.error('Failed to register new game after reset:', error);
-    tempUUID = null; 
+    tempUUID = null;
   }
 
   updateGoalNotification();
@@ -738,36 +745,84 @@ function get3DPosition(positionND, outVector) {
   );
 }
 
-const promptModal = document.getElementById('prompt-modal');
-const promptTextbox = document.getElementById('prompt-textbox');
-const promptStatus = document.getElementById('prompt-status');
-document.getElementById('set-prompt-button').addEventListener('click', openPromptModal);
-document.querySelector('.close-button').addEventListener('click', closePromptModal);
-
-async function openPromptModal() {
+async function handlePromptModalOpen() {
   paused = true;
   modalOpen = true;
-  promptStatus.textContent = ''; 
+  promptStatus.textContent = '';
   const currentPrompt = await getPromptAPI();
-  promptTextbox.value = currentPrompt || '';
-  promptModal.style.display = 'block';
+  if (currentPrompt) {
+    promptTextbox.value = currentPrompt;
+  } else {
+    promptTextbox.value = '';
+  }
 }
 
-function closePromptModal() {
-  promptModal.style.display = 'none';
+function handlePromptModalClose() {
   modalOpen = false;
   paused = false;
   showPausedMessage(paused);
 }
 
-document.getElementById('send-prompt-button').addEventListener('click', async () => {
-  const newPrompt = promptTextbox.value.trim();
-  if (newPrompt === '') {
-    promptStatus.textContent = 'Prompt cannot be empty.';
+async function handlePromptSubmit() {
+  try {
+    const newPrompt = promptTextbox.value.trim();
+    if (newPrompt === '') {
+      promptStatus.textContent = 'Prompt cannot be empty.';
+      promptStatus.style.color = 'red';
+      return;
+    }
+    const success = await setPromptAPI(newPrompt);
+    if (success) {
+      promptStatus.textContent = 'Prompt set successfully!';
+      promptStatus.style.color = 'green';
+    }
+  } catch (error) {
+    promptStatus.textContent = `Error: ${error.message}`;
     promptStatus.style.color = 'red';
+  }
+}
+
+async function setDirections() {
+  const descriptors = [];
+  const inputPairs = descriptorsInput.querySelectorAll('.descriptor-pair');
+  for (const pair of inputPairs) {
+    const negativeWord = pair.children[0].value.trim();
+    const positiveWord = pair.children[1].value.trim();
+    if (!negativeWord || !positiveWord) {
+      directionsStatus.textContent = 'All fields are required.';
+      directionsStatus.style.color = 'red';
+      return;
+    }
+    descriptors.push([negativeWord, positiveWord]);
+  }
+  if (descriptors.length < 4) {
+    directionsStatus.textContent = 'At least 4 descriptors are required.';
+    directionsStatus.style.color = 'red';
     return;
   }
+  directionsStatus.textContent = 'Setting directions...';
+  directionsStatus.style.color = 'black';
+  directionProgress.value = 0;
+  progressText.textContent = '0%';
 
-  await setPromptAPI(newPrompt);
-});
-
+  try {
+    const uuid = tempUUID || localStorage.getItem('gameUUID');
+    await sendDirectionsAPI(uuid, descriptors, (progress) => {
+      if (progress === 'error') {
+        directionsStatus.textContent = 'Error setting directions.';
+        directionsStatus.style.color = 'red';
+      } else {
+        directionProgress.value = progress;
+        progressText.textContent = `${progress}%`;
+        if (progress >= 100) {
+          directionsStatus.textContent = 'Directions set successfully!';
+          directionsStatus.style.color = 'green';
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error setting directions:', error);
+    directionsStatus.textContent = `Error: ${error.message}`;
+    directionsStatus.style.color = 'red';
+  }
+}

@@ -133,14 +133,10 @@ async function fetchStarTextureAPI(uuid, starPosition, signal = null, retries = 
   throw new Error(`Failed to fetch star texture after ${attempts} attempts`);
 }
 
-
 async function getPromptAPI() {
   const uuid = tempUUID || localStorage.getItem('gameUUID');
   if (!uuid) {
-    console.error('No game UUID found.');
-    promptStatus.textContent = 'Error: No game UUID found.';
-    promptStatus.style.color = 'red';
-    return;
+    return null;
   }
 
   try {
@@ -154,28 +150,20 @@ async function getPromptAPI() {
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error('Error fetching prompt:', errorData.error);
-      promptStatus.textContent = `Error: ${errorData.error}`;
-      promptStatus.style.color = 'red';
-      return;
+      throw new Error(errorData.error);
     }
 
     const data = await response.json();
     return data.prompt;
   } catch (error) {
-    console.error('Error fetching prompt:', error);
-    promptStatus.textContent = 'Error fetching prompt.';
-    promptStatus.style.color = 'red';
+    throw error;
   }
 }
 
 async function setPromptAPI(newPrompt) {
   const uuid = tempUUID || localStorage.getItem('gameUUID');
   if (!uuid) {
-    console.error('No game UUID found.');
-    promptStatus.textContent = 'Error: No game UUID found.';
-    promptStatus.style.color = 'red';
-    return;
+    return false;
   }
 
   try {
@@ -189,162 +177,57 @@ async function setPromptAPI(newPrompt) {
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error('Error setting prompt:', errorData.error);
-      promptStatus.textContent = `Error: ${errorData.error}`;
-      promptStatus.style.color = 'red';
-      return;
+      throw new Error(errorData.error);
     }
 
     const data = await response.json();
-    console.log('Prompt set successfully:', data.confirmation);
-    promptStatus.textContent = 'Prompt set successfully!';
-    promptStatus.style.color = 'green';
+    return true;
   } catch (error) {
-    console.error('Error setting prompt:', error);
-    promptStatus.textContent = 'Error setting prompt.';
-    promptStatus.style.color = 'red';
+    throw error;
   }
 }
 
-const directionsModal = document.getElementById('directions-modal');
-const descriptorsInput = document.getElementById('descriptors-input');
-const directionProgress = document.getElementById('direction-progress');
-const progressText = document.getElementById('progress-text');
-const directionsStatus = document.getElementById('directions-status');
+async function sendDirectionsAPI(uuid, descriptors, progressCallback) {
+  const response = await fetch(`${API_BASE_URL}/setDirections`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-cache',
+      'Accept': 'text/event-stream'
+    },
+    body: JSON.stringify({ uuid, descriptors }),
+  });
 
-
-document.getElementById('set-directions-button').addEventListener('click', openDirectionsModal);
-document.getElementById('close-directions-modal').addEventListener('click', closeDirectionsModal);
-document.getElementById('send-directions-button').addEventListener('click', setDirections);
-
-function openDirectionsModal() {
-  paused = true;
-  modalOpen = true;
-  clearDescriptorsInput();
-  addDescriptorInputs(); // Add the initial input pair
-  addAddButton(); // Add the "+ Add" button
-  directionsStatus.textContent = '';
-  directionsModal.style.display = 'block';
-}
-
-function closeDirectionsModal() {
-  directionsModal.style.display = 'none';
-  modalOpen = false;
-  paused = false;
-  showPausedMessage(paused);
-}
-
-function addDescriptorInputs() {
-  const inputPair = document.createElement('div');
-  inputPair.classList.add('descriptor-pair'); // Add a class for easier selection later
-  const input1 = document.createElement('input');
-  input1.type = 'text';
-  input1.placeholder = 'Negative word';
-  const input2 = document.createElement('input');
-  input2.type = 'text';
-  input2.placeholder = 'Positive word';
-  inputPair.appendChild(input1);
-  inputPair.appendChild(input2);
-  descriptorsInput.appendChild(inputPair);
-}
-
-function addAddButton() {
-  const addButton = document.createElement('button');
-  addButton.textContent = '+ Add';
-  addButton.addEventListener('click', addDescriptorInputs); // Add more inputs when clicked
-  descriptorsInput.appendChild(addButton);
-}
-
-function clearDescriptorsInput() {
-  descriptorsInput.innerHTML = '';
-}
-
-async function setDirections() {
-  const descriptors = [];
-  const inputPairs = descriptorsInput.querySelectorAll('.descriptor-pair');
-
-  for (const pair of inputPairs) {
-    const negativeWord = pair.children[0].value.trim();
-    const positiveWord = pair.children[1].value.trim();
-
-    if (!negativeWord || !positiveWord) {
-      directionsStatus.textContent = 'All fields are required.';
-      directionsStatus.style.color = 'red';
-      return;
-    }
-    descriptors.push([negativeWord, positiveWord]);
+  if (!response.ok) {
+    const errorData = await response.json();
+    const errorMessage = errorData?.error || response.statusText;
+    throw new Error(`Failed to set directions: ${errorMessage}`);
   }
 
-  if (descriptors.length < 4) {
-    directionsStatus.textContent = 'At least 4 descriptors are required.';
-    directionsStatus.style.color = 'red';
-    return;
-  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let receivedText = '';
 
-  directionsStatus.textContent = 'Setting directions...';
-  directionsStatus.style.color = 'black';
-  directionProgress.value = 0;
-  progressText.textContent = '0%';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    receivedText += decoder.decode(value, { stream: true });
+    let lines = receivedText.split('\n\n');
+    receivedText = lines.pop();
 
-  try {
-    const uuid = tempUUID || localStorage.getItem('gameUUID')
-    const response = await fetch(`${API_BASE_URL}/setDirections`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        // Important: Keep the connection open to receive streaming data
-        'Cache-Control': 'no-cache',
-        'Accept': 'text/event-stream'
-      },
-      body: JSON.stringify({ uuid: uuid, descriptors }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      const errorMessage = errorData?.error || response.statusText;
-      throw new Error(`Failed to set directions: ${errorMessage}`);
-    }
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let receivedText = '';
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      receivedText += decoder.decode(value, { stream: true });
-
-      let lines = receivedText.split('\n\n');
-      // Keep the last partial line (if any) for the next chunk
-      receivedText = lines.pop();
-
-      for (const line of lines) {
-        if (line.startsWith('data:')) {
-          const data = line.substring(5).trim();
-
-          if (data === 'error') {
-            directionsStatus.textContent = 'Error setting directions.';
-            directionsStatus.style.color = 'red';
-            return;
-          } else {
-            const progress = parseInt(data);
-            if (!isNaN(progress)) {
-              directionProgress.value = progress;
-              progressText.textContent = `${progress}%`;
-
-              if (progress >= 100) {
-                directionsStatus.textContent = 'Directions set successfully!';
-                directionsStatus.style.color = 'green';
-              }
-            }
+    for (const line of lines) {
+      if (line.startsWith('data:')) {
+        const data = line.substring(5).trim();
+        if (data === 'error') {
+          progressCallback('error');
+          return;
+        } else {
+          const progress = parseInt(data);
+          if (!isNaN(progress)) {
+            progressCallback(progress);
           }
         }
       }
     }
-  } catch (error) {
-    console.error('Error setting directions:', error);
-    directionsStatus.textContent = `Error: ${error.message}`;
-    directionsStatus.style.color = 'red';
   }
 }

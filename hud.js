@@ -1,3 +1,12 @@
+const directionsModal = document.getElementById('directions-modal');
+const descriptorsInput = document.getElementById('descriptors-input');
+const directionProgress = document.getElementById('direction-progress');
+const progressText = document.getElementById('progress-text');
+const directionsStatus = document.getElementById('directions-status');
+const promptModal = document.getElementById('prompt-modal');
+const promptTextbox = document.getElementById('prompt-textbox');
+const promptStatus = document.getElementById('prompt-status');
+
 function updateObjectInfo() {
   const minHoverSize = 30;
   const maxHoverSize = 60;
@@ -248,6 +257,58 @@ function updateGimbalAxisColors() {
   const zColor = new THREE.Color(dimensionColors[axisToDimension.z]);
   gimbalAxisMarkers.z.positive.material.color.copy(zColor);
   gimbalAxisMarkers.z.negative.material.color.copy(zColor);
+}
+
+function openDirectionsModal() {
+  paused = true;
+  modalOpen = true;
+  clearDescriptorsInput();
+  addDescriptorInputs();
+  addAddButton();
+  directionsStatus.textContent = '';
+  directionsModal.style.display = 'block';
+}
+
+function clearDescriptorsInput() {
+  descriptorsInput.innerHTML = '';
+}
+
+function addDescriptorInputs() {
+  const inputPair = document.createElement('div');
+  inputPair.classList.add('descriptor-pair');
+  const input1 = document.createElement('input');
+  input1.type = 'text';
+  input1.placeholder = 'Negative word';
+  const input2 = document.createElement('input');
+  input2.type = 'text';
+  input2.placeholder = 'Positive word';
+  inputPair.appendChild(input1);
+  inputPair.appendChild(input2);
+  descriptorsInput.appendChild(inputPair);
+}
+
+function addAddButton() {
+  const addButton = document.createElement('button');
+  addButton.textContent = '+ Add';
+  addButton.addEventListener('click', addDescriptorInputs);
+  descriptorsInput.appendChild(addButton);
+}
+
+function closeDirectionsModal() {
+  directionsModal.style.display = 'none';
+  modalOpen = false;
+  paused = false;
+  showPausedMessage(paused);
+}
+
+function openPromptModal() {
+  promptModal.style.display = 'block';
+  handlePromptModalOpen();
+}
+
+function closePromptModal() {
+  promptModal.style.display = 'none';
+  handlePromptModalClose();
 }
 
 window.addEventListener('resize', function () {
